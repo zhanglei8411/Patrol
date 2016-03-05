@@ -1,0 +1,12 @@
+/* Code Editor Log */
+
+/* 01-28 9:58 zhouzibo */
+1. 	由于猜测上升下降段飞机识别靶标时修正位置不明显是控制量偏小导致
+	修改了	XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER, 
+			XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK, 
+			XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK,
+			三个函数中的kp参数, 都从0.05修改为0.1
+/* 01-28 9:58 zhouzibo - End */			
+
+
+			
