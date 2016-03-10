@@ -482,6 +482,7 @@ static void * DJI_Sample_Funny_Ctrl_Thread_Func(void *arg)
     sleep(2);
     DJI_Pro_Status_Ctrl(6,0);
     atti_ctrl_sample_flag = -1;
+	return NULL;
 }
 
 int DJI_Sample_Funny_Ctrl(char cmd)

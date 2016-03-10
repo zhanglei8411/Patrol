@@ -19,6 +19,7 @@ int log_on_flag = 0;
 int log_fd = -1;
 char log_name[50];
 
+static void *store_to_log_thread_func(void * arg);
 
 int init_log(int *fd)
 {
@@ -161,7 +162,12 @@ void check_stat_store(int _stat, int _mask, char *strp)
 
 void add_crlf(void)
 {
-	write(log_fd, CRLF, 1);
+	int ret = 0;
+	ret = write(log_fd, CRLF, 1);
+	if(ret == -1)
+	{
+		perror("write");
+	}
 }
 
 float temp_no_gps_z = 0;
@@ -311,7 +317,7 @@ static void *store_to_log_thread_func(void * arg)
 	g_origin_pos.longti = ORIGIN_IN_HENGSHENG_LONGTI;
 	g_origin_pos.lati = ORIGIN_IN_HENGSHENG_LATI;
 	g_origin_pos.alti = ORIGIN_IN_HENGSHENG_ALTI;
-	XYZ g_origin_XYZ, cur_XYZ;  
+	XYZ cur_XYZ;  
 	api_quaternion_data_t cur_quaternion;
 	struct timeval    tv;  
 	struct tm         *tmlocal; 

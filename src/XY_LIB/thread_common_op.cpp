@@ -68,7 +68,7 @@ int thread_binding_cpu(pthread_t _tid, int cpu_seq)
 	cpu_set_t mask; 
  	cpu_set_t get; 
 
-	_tid = (_tid == NULL ? pthread_self() : _tid);
+	_tid = (_tid == 0 ? pthread_self() : _tid);
 	/* °ó¶¨ */
 	cpu_seq = (cpu_seq >= (cpu_core_num - 1) ? (cpu_core_num - 1) : cpu_seq);
 	CPU_ZERO(&mask); 

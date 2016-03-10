@@ -15,6 +15,8 @@ int led_fd = -1;
 pthread_mutex_t led_job_status_lock = PTHREAD_MUTEX_INITIALIZER;
 sem_t show_sem;
 
+static void *led_show_status_thread_func(void * arg);
+
 
 int XY_Status_Led_Setup(void)
 {
@@ -36,6 +38,7 @@ int XY_Status_Led_Setup(void)
 
 int init_led(int *fd)
 {
+	int ret = 0;
 	/* request the controller of gpio158 */
 	*fd = open(SYSFS_LED_EXPORT, O_WRONLY);
 	if(*fd == -1)
@@ -43,7 +46,11 @@ int init_led(int *fd)
 		printf("Open export failed.\n");
 		goto error;
 	}
-	write(*fd, SYSFS_LED_EXPORT_VAL, sizeof(SYSFS_LED_EXPORT_VAL));
+	ret = write(*fd, SYSFS_LED_EXPORT_VAL, sizeof(SYSFS_LED_EXPORT_VAL));
+	if(ret == -1)
+	{
+		perror("write");
+	}
 	close(*fd);
 
 	/* set gpio158 direction */
@@ -53,7 +60,12 @@ int init_led(int *fd)
 		printf("Open led diretion failed.\n");
 		goto release;
 	}
-	write(*fd, SYSFS_LED_DIR_VAL, sizeof(SYSFS_LED_DIR_VAL));
+	ret = write(*fd, SYSFS_LED_DIR_VAL, sizeof(SYSFS_LED_DIR_VAL));
+	if(ret == -1)
+	{
+		perror("write");
+	}
+	close(*fd);
 	close(*fd);
 
 	/* open gpio158 value file to write */
@@ -87,6 +99,10 @@ void set_led(int _fd, unsigned int _val)
 
 	ioval[0] = (_val == 0 ? '0' : '1');
 	ret = write(_fd, ioval, 1);
+	if(ret == -1)
+	{
+		perror("write");
+	}
 	lseek(_fd, 0, SEEK_SET);
 }
 
@@ -129,7 +145,7 @@ int get_led_cmd(void)
 
 void update_led_jobs(void)
 {
-	int i, j = 0;
+	int j = 0;
 	
 	pthread_mutex_lock(&led_job_status_lock);
 

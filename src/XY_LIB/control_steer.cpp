@@ -9,6 +9,10 @@ void set_io_high(int io_fd)
 	
 	ioval[0] = '1';
 	ret = write(io_fd, ioval, 1);
+	if(ret == -1)
+	{
+		printf("set gpio high failed\n");
+	}
 	lseek(io_fd, 0, SEEK_SET);
 	
 }
@@ -20,6 +24,10 @@ void set_io_low(int io_fd)
 	
 	ioval[0] = '0';
 	ret = write(io_fd, ioval, 1);
+	if(ret == -1)
+	{
+		printf("set gpio high failed\n");
+	}
 	lseek(io_fd, 0, SEEK_SET);
 }
 
@@ -27,6 +35,7 @@ void set_io_low(int io_fd)
 
 int obtain_io(int *fd)
 {
+	int res = 0;
 	/* request the controller of gpio158 */
 	*fd = open(SYSFS_IO_EXPORT, O_WRONLY);
 	if(*fd == -1)
@@ -34,7 +43,11 @@ int obtain_io(int *fd)
 		printf("Open export failed.\n");
 		goto error;
 	}
-	write(*fd, SYSFS_IO_EXPORT_VAL, sizeof(SYSFS_IO_EXPORT_VAL));
+	res = write(*fd, SYSFS_IO_EXPORT_VAL, sizeof(SYSFS_IO_EXPORT_VAL));
+	if(-1==res)
+	{
+		perror("write");
+	}
 	close(*fd);
 
 	/* set gpio158 direction */
@@ -44,7 +57,11 @@ int obtain_io(int *fd)
 		printf("Open gpio158 diretion failed.\n");
 		goto release;
 	}
-	write(*fd, SYSFS_IO_DIR_VAL, sizeof(SYSFS_IO_DIR_VAL));
+	res = write(*fd, SYSFS_IO_DIR_VAL, sizeof(SYSFS_IO_DIR_VAL));
+	if(-1==res)
+	{
+		perror("write");
+	}
 	close(*fd);
 
 	/* open gpio158 value file to write */

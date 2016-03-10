@@ -132,7 +132,6 @@ int main(int argc,char **argv)
 	activate_data_t user_act_data; 
 	char temp_buf[65];
 	char app_bundle_id[32] = "1234567890";
-	pthread_t express_thread_id;
 	int i = 0;
 	int wait_time = 0;
 

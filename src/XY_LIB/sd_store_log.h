@@ -18,7 +18,6 @@
 int XY_SD_Log_Setup(void);
 void set_no_gps_z_data(float _no_gps_z);
 void set_ctrl_data(attitude_data_t _ctrl_data);
-static void *store_to_log_thread_func(void * arg);
 int XY_Start_Store_Log(void);
 int XY_Stop_Store_Log(void);
 void set_log_offset_adjust(Offset _src_offset);

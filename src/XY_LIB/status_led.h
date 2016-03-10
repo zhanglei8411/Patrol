@@ -26,6 +26,5 @@ int init_led(int *fd);
 void turn_on_led(int _fd);
 void turn_off_led(int _fd);
 void ioctl_led(int _new_cmd);
-static void *led_show_status_thread_func(void * arg);
 
 #endif

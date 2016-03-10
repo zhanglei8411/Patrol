@@ -11,180 +11,6 @@ sem_t ultra_get_sem;
 
 Ultra_Data ultra_data;
 
-
-#if 0
-
-int ultra_index = 0;
-float ultra_buf[ULTRA_ANALYSIS_NUM]={};
-
-//计算标准差
-static int STD_calc(float avg)
-{
-         float variance=0;
-         float stdev;
-         variance=(pow((avg-ultra_buf[0]),2)+ pow((avg-ultra_buf[1]),2)+pow((avg-ultra_buf[2]),2)+pow((avg-ultra_buf[3]),2) )/4;
-         stdev=sqrt(variance);
-         if(stdev>0.3)
-            return -1;
-         else return 0;
-}
-static void filter_hop(int ultra_index,int *stat)
-{
-      if(ultra_index==0)
-      {
-             if( ultra_buf[ultra_index]<=ultra_buf[ultra_index+1]&&ultra_buf[ultra_index+1]<=ultra_buf[ultra_index+2]||
-                  ultra_buf[ultra_index]>=ultra_buf[ultra_index+1]&&ultra_buf[ultra_index+1]>=ultra_buf[ultra_index+2])
-              {
-                     //什么也不做
-              }
-              else
-              {
-                  *stat|=0x01<<ultra_index;
-              }
-      }
-      else if(ultra_index>0&&ultra_index<3)
-      { 
-              if( ultra_buf[ultra_index-1]<=ultra_buf[ultra_index]&&ultra_buf[ultra_index]<=ultra_buf[ultra_index+1]||
-                  ultra_buf[ultra_index-1]>=ultra_buf[ultra_index]&&ultra_buf[ultra_index]>=ultra_buf[ultra_index+1])
-              {
-                     //什么也不做
-              }
-              else
-              {
-                  *stat|=0x01<<ultra_index;
-              }
-      }
-      else if(ultra_index==3)
-      {  
-              if( ultra_buf[ultra_index-2]<=ultra_buf[ultra_index-1]&&ultra_buf[ultra_index-1]<=ultra_buf[ultra_index]||
-                  ultra_buf[ultra_index-2]>=ultra_buf[ultra_index-1]&&ultra_buf[ultra_index-1]>=ultra_buf[ultra_index])
-              {
-                     //什么也不做
-              }
-              else
-              {
-                  *stat|=0x01<<ultra_index;
-              }
-      }
-}
-
-static void clear_ErrData(int stat)
-{
-		if(stat)
-		{
-            switch(stat)
-			{
-				case 1:
-					  ultra_buf[0]=0;
-					  break;
-				case 2:
-					  ultra_buf[1]=0;
-					  break;
-				case 3:
-					  ultra_buf[0]=0;
-					  ultra_buf[1]=0;
-					  break;
-				case 4:
-					  ultra_buf[2]=0;
-					  break;
-				case 5:
-					  ultra_buf[0]=0;
-					  ultra_buf[2]=0;
-					  break;
-				case 6:
-					  ultra_buf[1]=0;
-					  ultra_buf[2]=0;
-					  break;
-				case 7:
-					  ultra_buf[0]=0;
-					  ultra_buf[1]=0;
-					  ultra_buf[2]=0;
-					  break;      
-				case 8:
-					  ultra_buf[3]=0;
-					  break;
-				case 9:
-					  ultra_buf[0]=0;
-					  ultra_buf[3]=0;
-					  break;
-				case 10:
-					  ultra_buf[1]=0;
-					  ultra_buf[3]=0;
-					  break;
-				case 11:
-					  ultra_buf[0]=0;
-					  ultra_buf[1]=0;
-					  ultra_buf[3]=0;
-					  break;
-				case 12: 
-					  ultra_buf[2]=0;
-					  ultra_buf[3]=0;
-					  break;
-				case 13: 
-					  ultra_buf[0]=0;
-					  ultra_buf[2]=0;
-					  ultra_buf[3]=0;
-					  break;  
-				case 14: 
-					  ultra_buf[1]=0;
-					  ultra_buf[2]=0;
-					  ultra_buf[3]=0;
-					  break;
-				case 15:
-					  ultra_buf[0]=0;
-					  ultra_buf[1]=0;
-					  ultra_buf[2]=0;
-					  ultra_buf[3]=0;
-					  break; 
-				default:
-					  break;
-			}
-      }
-}
-
-int ultra_calc(float _log_ultra_data)
-{  
-	ultra_buf[ultra_index] = _log_ultra_data;    
-	ultra_index++;
-	int stat=0;  
-
-	if(ultra_index == ULTRA_ANALYSIS_NUM)
-	{
-		float avg = (ultra_buf[0] + ultra_buf[1] + ultra_buf[2] + ultra_buf[3]) / 4;
-		ultra_index = 0;
-		if(STD_calc(avg)==0)
-        {
-			while(ultra_index < ULTRA_ANALYSIS_NUM)
-			{
-				float tmp = 0;
-				tmp = abs(ultra_buf[ultra_index] - avg);
-			
-				if(tmp <= 0.2 && tmp >= 0)
-				{
-					//第三层过滤   
-	            	filter_hop(ultra_index,&stat);
-					ultra_index++;
-				}
-				else
-				{               
-					stat |= 0x01 << ultra_index;
-					ultra_index++;
-				}
-			}
-			clear_ErrData(stat);
-        }
-        else
-		{
-            return 1;
-		}
-		
-		ultra_index = 0;
-		return 0;
-	}
-	return 1;
-}
-#endif
-
 int tell_external_ultra_is_available(void)
 {
 	return sem_post(&ultra_get_sem);		//if error return -1
@@ -216,6 +42,7 @@ int check_ultra_data_if_available(int _get_id)
 		}
 			
 	}
+	return 0;
 }
 
 void set_ultra_data(float _data)
@@ -442,13 +269,13 @@ int adapter_ctl(ks103_adapter *adapter, unsigned int cmd, int arg)
 	}
 	return 0;
 }
-
+#if 0
 /* 如果由其他线程调用此函数修改adapter.cmd的话, 需要在这里加入互斥锁 */
 static int change_adapter_cmd(unsigned char cmd_value)
 {
 	return adapter_ctl(&adapter, KS103_SCMD, cmd_value);
 }
-
+#endif
 void check_adapter_cmd(void)
 {
 	if(!adapter.cmd || adapter.cmd > 0xCC)
@@ -469,7 +296,7 @@ int adapter_setup(void)
 float KS103_Cal_Detect_Result(unsigned char *buf, unsigned char cmd)
 {
 	unsigned char cal_dependence;
-	float cal_result;
+	float cal_result = 0;
 
 	if(buf == NULL)
 		return (float)-1;
@@ -498,10 +325,6 @@ static void *KS103_Thread_Func(void * arg)
 	unsigned char wbuf[3];
 	unsigned char rbuf[2];
 	int i = 0;
-	char _msg[50];
-
-	struct timeval tpstart,tpend; 
-	float timeuse; 
 	
 	adapter_setup();
 	

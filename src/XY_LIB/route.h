@@ -203,17 +203,6 @@ int init_goback_route_list(void);
 int XY_Drone_Execute_Task(void);
 int XY_Drone_Deliver_Task(void);
 int XY_Drone_Goback_Task(void);
-static void *drone_deliver_task_thread_func(void * arg);
-static void *drone_deliver_up_thread_func(void * arg);
-static void *drone_deliver_p2p_thread_func(void * arg);
-static void *drone_deliver_down_thread_func(void * arg);
-
-
-static void *drone_goback_task_thread_func(void * arg);
-static void *drone_goback_up_thread_func(void * arg);
-static void *drone_goback_p2p_thread_func(void * arg);
-static void *drone_goback_down_thread_func(void * arg);
-
 
 
 #endif

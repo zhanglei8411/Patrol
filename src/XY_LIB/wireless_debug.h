@@ -28,15 +28,14 @@ struct debug_info{
 	char msg_2[MSG_3_SIZE];
 };
 
-int sdk_send_debug_info(char *str);
+int sdk_send_debug_info(const char *str);
 int sdk_find_available_msg(int need_len, int used_msg);
 int XY_Debug_Setup(void);
 int XY_Debug_Easy_Send(char *buf, int len);
-int XY_Debug_Sprintf(int seq, char *fmt, ...);
-int XY_Debug_Send_At_Once(char *fmt, ...);
+int XY_Debug_Sprintf(int seq, const char *fmt, ...);
+void XY_Debug_Send_At_Once(const char *fmt, ...);
 int sdk_wireless_debug_setup(const char *device, int baudrate);
 int create_debug_check_and_send_thread(void);
-static void *Debug_Check_And_Send_Thread_Func(void * arg);
 
 
 

@@ -238,6 +238,10 @@ static void * SerialRecvThread(void * arg)
 		}
 		finish = clock();
 		totaltime=(double)(finish-start)/CLOCKS_PER_SEC;
+		if(totaltime < 0)
+		{
+			printf("heheda\n");
+		}
 //		cout << "Average running time for select " << totaltime << endl;
 
 		ioctl(serial_fd, FIONREAD, &depth);

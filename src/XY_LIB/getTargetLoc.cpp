@@ -267,7 +267,7 @@ void xyVision::GetTarget::adjustImg_gpu(gpu::GpuMat& img)
 	gpu::resize(img, img2, Size(int(sz.width*scaleFactor), int(sz.height*scaleFactor)));
 	img = img2.clone();
 
-	int a = gpu::getCudaEnabledDeviceCount();
+	gpu::getCudaEnabledDeviceCount();
 	gpu::setDevice(0);
 	vector<gpu::GpuMat> chs;
 	gpu::split(img, chs);
@@ -538,6 +538,7 @@ double xyVision::GetTarget::computeRotatedRect(const vector<Point>& contour, cv:
 	Point2f vertices[4];
 	box.points(vertices);
 	Point points[4];
+	unsigned int i = 0;
 	for (int i = 0; i < 4; ++i)
 	{
 		points[i] = Point((int)vertices[i].x, (int)vertices[i].y);
@@ -550,7 +551,7 @@ double xyVision::GetTarget::computeRotatedRect(const vector<Point>& contour, cv:
 	findNonZero(tmp, boxIdx);
 	double n_pixels = (double)boxIdx.total();
 	double n_nonZero = 0;
-	for (int i = 0; i < boxIdx.total(); ++i)
+	for (i = 0; i < boxIdx.total(); ++i)
 	{
 		Point _p = boxIdx.at<Point>(i);
 		if (bi.at<unsigned char>(_p.y, _p.x) > 0)
@@ -564,7 +565,7 @@ double xyVision::GetTarget::computeRotatedRect(const vector<Point>& contour, cv:
 
 void xyVision::GetTarget::locating(vector<Point> & tarContour)
 {
-	float scaleFactor = this->proInfo.scale;
+	//float scaleFactor = this->proInfo.scale;
 	float boardWidth = this->targetInfo.targetWidth;
 	Matx33f _K = this->cameraInfo.newCameraMatrix;
 	//if (scaleFactor != 1.0)

@@ -52,6 +52,7 @@ int check_offset_data_if_available(int _get_id)
 		}
 			
 	}
+	return 0;
 }
 
 void set_offset_data(Point3f _point)
@@ -162,6 +163,10 @@ int get_current_cnt_in_profile(void)
 	}
 	memset(cnt, 0, 3);
 	ret = read(fd, cnt, 3);
+	if(ret == -1)
+	{
+		perror("write");
+	}
 	
 	return atoi(cnt);
 }
@@ -214,7 +219,7 @@ int save_image_into_sdcard(Mat _image)
 	cout << total_filename << endl;
 	const char *p = total_filename.c_str();
 	imwrite(p, _image);
-	
+	return 0;
 }
 
 Mat img;

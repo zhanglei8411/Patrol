@@ -9,10 +9,11 @@
 #include "wireless_debug.h"
 
 
-#define HTTP_DEBUG_PRINT	1
+#define HTTP_DEBUG_PRINT	0
 #define HTTP_FUNC_ON		1
 
 int sock_fd = -1;
+char http_host[HTTP_REQ_SIZE];
 char http_post_str[HTTP_POST_DATA_SIZE];
 int http_post_head_length = 0;
 int new_order = 0;
@@ -25,6 +26,33 @@ sem_t report_drone_pos_sem;
 int post_req_flag = 0;
 
 struct post_info post_package = {0};
+
+static void *reported_data_thread_func(void * arg);
+static void *wait_order_thread_func(void * arg);
+
+//static void *keep_alive_thread_func(void * arg);
+static void *report_drone_pos_at_intervals_thread_func(void *arg);
+
+
+
+static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+  size_t realsize = size * nmemb;
+  struct MemoryStruct *mem = (struct MemoryStruct *)userp;
+ 
+  mem->memory = (char*)realloc(mem->memory, mem->size + realsize + 1);
+  if(mem->memory == NULL) {
+    /* out of memory! */ 
+    printf("not enough memory (realloc returned NULL)\n");
+    return 0;
+  }
+ 
+  memcpy(&(mem->memory[mem->size]), contents, realsize);
+  mem->size += realsize;
+  mem->memory[mem->size] = 0;
+ 
+  return realsize;
+}
 
 
 void XY_Update_Post_Flag(int _offset)
@@ -151,10 +179,10 @@ int connect_to_server(int _sock_fd)
 void setup_post_data_head(void)
 {
 	memset(http_post_str, 0, HTTP_POST_DATA_SIZE);
-	strcat(http_post_str, "POST /api/order/set_express HTTP/1.1\r\n");
-	strcat(http_post_str, "User-Agent: curl/7.22.0 (x86_64-pc-linux-gnu) libcurl/7.22.0 OpenSSL/1.0.1 zlib/1.2.3.4 libidn/1.23 librtmp/2.3\r\n");
-	strcat(http_post_str, "Host: cs.sysmagic.com.cn\r\n");
-	strcat(http_post_str, "Accept: */*\r\n");
+	//strcat(http_post_str, "POST /api/order/set_express HTTP/1.1\r\n");
+	//strcat(http_post_str, "User-Agent: curl/7.22.0 (x86_64-pc-linux-gnu) libcurl/7.22.0 OpenSSL/1.0.1 zlib/1.2.3.4 libidn/1.23 librtmp/2.3\r\n");
+	//strcat(http_post_str, "Host: demo.sysmagic.com.cn/route\r\n");
+	//strcat(http_post_str, "Accept: */*\r\n");
 	http_post_head_length = strlen((const char *)http_post_str);
 }
 
@@ -179,12 +207,14 @@ int create_link_in_http(void)
 }
 
 
-int send_http_post_data(char *_data)
+int send_http_post_data(char *_data, CURL *curl)
 {
 	int index = 0;
-	int ret = 0;
+	//int ret = 0;
 	int packet_length = 0;
 	char temp_str[50];
+
+
 	
 	index = http_post_head_length;
 	memset(http_post_str + index, 0, HTTP_POST_DATA_SIZE - index);
@@ -199,6 +229,30 @@ int send_http_post_data(char *_data)
 	printf("%s", http_post_str);
 #endif
 
+	
+	if(curl) 
+	{	
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (void*)http_post_str);	
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+		
+#if HTTP_DEBUG_PRINT
+		CURLcode res;
+		long http_code = 0;
+		res = curl_easy_perform(curl);
+		if (res == CURLE_OK)
+		{
+		    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+			printf("\nhttp %ld\r\n\r\n\r\n",http_code);
+		}
+		else if(res != CURLE_OK)
+		fprintf(stderr, "curl_easy_perform() failed: %s\n",
+		      curl_easy_strerror(res));
+#endif
+
+    }
+   
+		
+#if 0
 	ret = send(sock_fd, (void *)http_post_str, strlen((const char *)http_post_str), 0); 
 	if (ret < 0)
 	{ 
@@ -209,6 +263,7 @@ int send_http_post_data(char *_data)
 	{ 
 		printf("send success, total send %d \n", ret); 
 	} 
+#endif
 
 	return 0;
 }
@@ -238,12 +293,12 @@ int find_available_post_msg(int need_len, int used_msg)
 	return -1;
 }
 
-int XY_Send_Http_Post_Request_Data(int seq, char *fmt, ...)
+int XY_Send_Http_Post_Request_Data(int seq, const char *fmt, ...)
 {
 	va_list args;
 	int r;
 
-	if( ((r = XY_Get_Post_Flag()) & (1<<seq)) != 0  || seq == NULL)
+	if( ((r = XY_Get_Post_Flag()) & (1<<seq)) != 0  || seq == 0)
 	{
 		seq = find_available_post_msg( strlen((const char *)fmt), r); 
 		if(seq < 0)
@@ -287,11 +342,13 @@ int XY_Send_Http_Post_Request_Data(int seq, char *fmt, ...)
 static void *reported_data_thread_func(void * arg)
 {
 	int _flag = 0;
-	int i = 0;
+	unsigned int i = 0;
 	int ret = 0;
 	int err_cnt[10] = {0};
-	int recv_bytes;
-	char recv_buf[512];
+	//int recv_bytes;
+	//char recv_buf[512];
+	CURL *curl;
+	
 	struct timeval tv_recv_timeo;
 	
 	tv_recv_timeo.tv_sec = 1; 	// set recv timeout is 1s
@@ -302,6 +359,10 @@ static void *reported_data_thread_func(void * arg)
 		printf("Set Recv TimeOut Error.\n");
 		
 	}
+		
+	curl_global_init(CURL_GLOBAL_ALL);
+	curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_URL, http_host);
 	
 	while(1)
 	{	
@@ -320,24 +381,24 @@ static void *reported_data_thread_func(void * arg)
 					switch(i)
 					{
 						case 0:
-							ret = send_http_post_data(post_package.msg_0);
+							ret = send_http_post_data(post_package.msg_0, curl);
 							break;
 						case 1:
-							ret = send_http_post_data(post_package.msg_1);
+							ret = send_http_post_data(post_package.msg_1, curl);
 							break;
 						case 2:
-							ret = send_http_post_data(post_package.msg_2);
+							ret = send_http_post_data(post_package.msg_2, curl);
 							break;
 						case 3:
-							ret = send_http_post_data(post_package.msg_3);
+							ret = send_http_post_data(post_package.msg_3, curl);
 							break;
 						case 4:
-							ret = send_http_post_data(post_package.msg_4);
+							ret = send_http_post_data(post_package.msg_4, curl);
 							break;
 					}
 					if(ret == 0)	//send success
 					{
-#if 1
+#if 0
 						memset(recv_buf, 0, 512);
 						recv_bytes = recv(sock_fd, (void *)recv_buf, 512, 0);	// recv is blocking system calls
 						if( recv_bytes == 0 )
@@ -371,7 +432,7 @@ static void *reported_data_thread_func(void * arg)
 					}
 					else
 					{
-_err_handle:
+//_err_handle:
 						err_cnt[i]++;
 						if(err_cnt[i] > 2)
 						{
@@ -388,34 +449,77 @@ _err_handle:
 		}
 		
 	}
-_exit:
+//_exit:
+	curl_easy_cleanup(curl);
 	pthread_exit(NULL);
 }
 
 cJSON *json;
 static void *wait_order_thread_func(void * arg)
 {	
-	char http_req[HTTP_REQ_SIZE], recv_buf[HTTP_RECV_BUF_SIZE];
-	fd_set http_fds; 
-	struct timeval tv;
-	int ret, recv_cnt = 0;
-	struct timeval tpstart, tpend;
-	int timeuse, timesleep;
+	//char http_req[HTTP_REQ_SIZE];
+	char recv_buf[HTTP_RECV_BUF_SIZE];
+	//fd_set http_fds; 
+	//struct timeval tv;
+	//int ret, recv_cnt = 0;
+	//struct timeval tpstart, tpend;
+	//int timeuse, timesleep;
 	int length = 0;
 	char json_buf[500] = {0};
+	//cJSON *taskArry;
+	//int arrySize;
+	//cJSON *tasklist;
+	int id = 3;
+	CURL *curl_handle;
+  	CURLcode res;
+	struct MemoryStruct chunk;
 
+	chunk.memory = (char*)malloc(1);  /* will be grown as needed by the realloc above */ 
+  	chunk.size = 0;    /* no data at this point */ 
+
+	memset(http_host, 0, HTTP_REQ_SIZE);
+	sprintf(http_host, "http://demo.sysmagic.com.cn/route/get?id=%d", id);
+	 while(1)
+	{
+	  	curl_global_init(CURL_GLOBAL_ALL);
+		/* --初始化 */ 
+		curl_handle = curl_easy_init();
+		/* --获取数据 */ 
+		curl_easy_setopt(curl_handle, CURLOPT_URL, http_host);
+		/* --指定存数据函数  */ 
+		curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+		/* --存放数据 */ 
+		curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
+		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+
+		/* --完成传输*/ 
+		res = curl_easy_perform(curl_handle);
+
+		if(res != CURLE_OK) 
+		{
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+		        curl_easy_strerror(res));
+			XY_Debug_Send_At_Once("CURL transfer error!\n");
+			goto pre_again;
+		}
+		else
+		{
+			printf("%s\n%lu bytes retrieved\n",chunk.memory,(long)chunk.size);
+			XY_Debug_Send_At_Once("%s\n%lu bytes retrieved\n",chunk.memory,(long)chunk.size);
+			memcpy(&recv_buf, chunk.memory, chunk.size);
+		}		
+ 
+#if 0
 	memset(http_req, 0, HTTP_REQ_SIZE);
-	strcat(http_req, "GET /api/order/get_json_order HTTP/1.1\r\n");		//request line
+	//strcat(http_req, "GET /api/order/get_json_order HTTP/1.1\r\n");		//request line
+	strcat(http_req, "GET  HTTP/1.1\r\n");		//request line
 	strcat(http_req, "User-Agent: curl/7.22.0 (x86_64-pc-linux-gnu) libcurl/7.22.0 OpenSSL/1.0.1 zlib/1.2.3.4 libidn/1.23 librtmp/2.3\r\n");
-	strcat(http_req, "Host: cs.sysmagic.com.cn\r\n");
+	strcat(http_req, "Host: demo.sysmagic.com.cn/route/get?id=1\r\n");
 	strcat(http_req, "Accept: */*\r\n\r\n");
-
-#if HTTP_DEBUG_PRINT
-	printf("%s", http_req);
 #endif
 	
-	while(1)
-	{
+	
+#if 0
 		ret = send(sock_fd, (void *)http_req, strlen(http_req), 0); 
 		if (ret < 0)
 		{ 
@@ -479,6 +583,8 @@ static void *wait_order_thread_func(void * arg)
 #endif
 				break;
 		}
+#endif
+
 		if( strstr(recv_buf, "Connection: close") )
 		{
 			printf("Connection: close\n");
@@ -496,6 +602,7 @@ static void *wait_order_thread_func(void * arg)
 			XY_Debug_Send_At_Once("empty packets\n");
 			goto pre_again;
 		}
+	
 		memcpy(json_buf, strstr(recv_buf, "{"), length);
 		json = cJSON_Parse(json_buf);
 		printf("json_buf is %s\n", json_buf);
@@ -506,7 +613,19 @@ static void *wait_order_thread_func(void * arg)
 		}
 
 		set_order_status();
-		
+#if 0	 
+    	taskArry=cJSON_GetObjectItem(json,"data");//取数组  
+    	arrySize=cJSON_GetArraySize(taskArry);//数组大小 
+    	printf("arrySize is %d\n",arrySize);
+    	tasklist=taskArry->child;//子对象  
+    	while(tasklist!=NULL)  
+    	{  	
+			printf("[%lf,%lf,%lf]\n",cJSON_GetArrayItem(tasklist,0)->valuedouble,cJSON_GetArrayItem(tasklist,1)->valuedouble,cJSON_GetArrayItem(tasklist,2)->valuedouble); 
+        	tasklist=tasklist->next;  
+    	} 
+#endif
+#if 0
+
 		printf("Get: \n> order id is %s\n> num is %d\n> seq is %d\n> longti is %.8lf\n> lati is %.8lf\n",
 														cJSON_GetObjectItem(json, "order_id")->valuestring, 
 														cJSON_GetObjectItem(json, "num")->valueint, 
@@ -521,7 +640,7 @@ static void *wait_order_thread_func(void * arg)
 														cJSON_GetObjectItem(json, "seq")->valueint, 
 														cJSON_GetObjectItem(json, "lng")->valuedouble, 
 														cJSON_GetObjectItem(json, "lat")->valuedouble);
-		
+#endif		
 		goto _exit;
 
 		
@@ -530,12 +649,16 @@ pre_again:
 	}
 
 _exit:
+	curl_easy_cleanup(curl_handle);
+	free(chunk.memory);
+	curl_global_cleanup();
+	
 	pthread_exit(NULL);
 }
 
-char *get_order_id_from_json(void)
+int get_order_id_from_json(void)
 {
-	return cJSON_GetObjectItem(json, "order_id")->valuestring;
+	return cJSON_GetObjectItem(json, "seq")->valueint;
 }
 
 
@@ -558,7 +681,7 @@ void message_server_keep_alive(void)
 void message_server_load_is_okay(void)
 {
 #if HTTP_FUNC_ON
-	XY_Send_Http_Post_Request_Data(0, "msg_id=1&order_id=%s&load=1\r\n", get_order_id_from_json() );
+	XY_Send_Http_Post_Request_Data(0, "msg_id=1&order_id=%d&load=1\r\n", get_order_id_from_json() );
 #endif
 }
 
@@ -566,7 +689,7 @@ void message_server_finding_mark(void)
 {
 #if HTTP_FUNC_ON
 	//标记定位中
-	XY_Send_Http_Post_Request_Data(1, "msg_id=3&order_id=%s&landing=1\r\n", get_order_id_from_json() );
+	XY_Send_Http_Post_Request_Data(1, "msg_id=3&order_id=%d&landing=1\r\n", get_order_id_from_json() );
 #endif
 }
 
@@ -574,7 +697,7 @@ void message_server_found_mark(void)
 {
 #if HTTP_FUNC_ON
 	//定位完成
-	XY_Send_Http_Post_Request_Data(2, "msg_id=3&order_id=%s&landing=2\r\n", get_order_id_from_json() );
+	XY_Send_Http_Post_Request_Data(2, "msg_id=3&order_id=%d&landing=2\r\n", get_order_id_from_json() );
 #endif
 }
 
@@ -582,7 +705,7 @@ void message_server_deliver_is_okay(void)
 {
 #if HTTP_FUNC_ON
 	//已送达, 准备返航
-	XY_Send_Http_Post_Request_Data(3, "msg_id=4&order_id=%s&arrived=0\r\n", get_order_id_from_json() );
+	XY_Send_Http_Post_Request_Data(3, "msg_id=4&order_id=%d&arrived=0\r\n", get_order_id_from_json() );
 #endif
 }
 
@@ -616,13 +739,13 @@ void message_server_current_pos_of_drone(void)
 	f_longti 	= double_to_6_decimal_places(_cpos.longti) 	+ GD2GE_LONGTI_DIFF;
 	f_lati		= double_to_6_decimal_places(_cpos.lati) 	+ GD2GE_LATI_DIFF;
 	
-	XY_Send_Http_Post_Request_Data(4, 	"msg_id=2&order_id=%s&longti_cur=%.6f&lati_cur=%.6f&time=50\r\n", 
+	XY_Send_Http_Post_Request_Data(4, 	"msg_id=2&order_id=%d&longti_cur=%.6f&lati_cur=%.6f&time=50\r\n", 
 										get_order_id_from_json(),
 										f_longti, f_lati);
 #endif
 }
 
-
+#if 0
 static void *keep_alive_thread_func(void * arg)
 {
 	while(1)
@@ -630,8 +753,9 @@ static void *keep_alive_thread_func(void * arg)
 		sleep(10);
 		message_server_keep_alive();
 	}
+	pthread_exit(NULL);
 }
-
+#endif
 
 void enable_report_drone_pos(void)
 {
@@ -650,6 +774,7 @@ static void *report_drone_pos_at_intervals_thread_func(void *arg)
 		sleep(1);
 		message_server_current_pos_of_drone();
 	}
+	pthread_exit(NULL);
 }
 
 

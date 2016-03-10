@@ -12,6 +12,8 @@ struct debug_info debug_package = {0};
 pthread_mutex_t debug_fresh_flag_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t debug_msg_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static void *Debug_Check_And_Send_Thread_Func(void * arg);
+
 
 void XY_Update_Debug_Flag(int _offset)
 {
@@ -37,12 +39,12 @@ void XY_Empty_Debug_Flag(int _offset)
 	pthread_mutex_unlock(&debug_fresh_flag_lock);
 }
 
-int XY_Debug_Sprintf(int seq, char *fmt, ...)
+int XY_Debug_Sprintf(int seq, const char *fmt, ...)
 {
 	va_list args;
 	int r;
 	
-	if( ((r = XY_Get_Debug_Flag()) & (1<<seq)) != 0  || seq == NULL)
+	if( ((r = XY_Get_Debug_Flag()) & (1<<seq)) != 0  || seq == 0)
 	{
 		seq = sdk_find_available_msg( strlen((const char *)fmt), r); 
 		if(seq < 0)
@@ -75,7 +77,7 @@ int XY_Debug_Sprintf(int seq, char *fmt, ...)
 	return 0;
 }
 
-int XY_Debug_Send_At_Once(char *fmt, ...)
+void XY_Debug_Send_At_Once(const char *fmt, ...)
 {
 	char msg_at_once[512];
 	
@@ -123,7 +125,7 @@ int sdk_wireless_debug_setup(const char *device, int baudrate)
 	return 0;
 }
 
-int sdk_send_debug_info(char *str)
+int sdk_send_debug_info(const char *str)
 {
 	return write(debug_fd, str, strlen((const char *)str));
 }
@@ -159,7 +161,7 @@ static void *Debug_Check_And_Send_Thread_Func(void * arg)
 	//thread_binding_cpu(NULL, GENERAL_JOB_CPU);
 	
 	int _flag = 0;
-	int i = 0;
+	unsigned int i = 0;
 
 	while(1)
 	{	

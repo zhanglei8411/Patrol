@@ -174,7 +174,7 @@ static void * PollThread(void * arg)
 	}
 	return NULL;
 }
-
+#if 0
 static int Start_PollThread(void)
 {
 	int ret;
@@ -186,7 +186,7 @@ static int Start_PollThread(void)
 	}
 	return 0;
 }
-
+#endif
 unsigned int Get_TimeStamp(void)
 {
 	struct timeval cur_time;

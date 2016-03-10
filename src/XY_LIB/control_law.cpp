@@ -77,7 +77,7 @@ int XY_Ctrl_Drone_To_Assign_Height_Has_MaxVel_And_FP_DELIVER(float _max_vel, flo
     double k1d_fp, k1p_fp, k2d_fp, k2p_fp;
     XYZ f_XYZ, c_XYZ;
     Center_xyz fxyz, cxyz;
-    double last_distance_xyz = 0.0;
+    //double last_distance_xyz = 0.0;
     double x_n_vel, y_e_vel;
     api_pos_data_t _focus_point;
 
@@ -159,15 +159,16 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
     api_quaternion_data_t _cquaternion;
     attitude_data_t user_ctrl_data;
     api_pos_data_t _focus_point;
-    float yaw_angle, roll_angle, pitch_angle;
-    float yaw_rard, roll_rard, pitch_rard;
+    //float yaw_angle, roll_angle, pitch_angle;
+    //float yaw_rard;
+    float roll_rard, pitch_rard;
     Offset offset, offset_adjust;
-    int target_has_updated = 0;
+    //int target_has_updated = 0;
     float x_camera_diff_with_roll, y_camera_diff_with_pitch;
-    float last_dis_to_mark, last_velocity;
+    float last_dis_to_mark;
     Center_xyz cur_target_xyz;
     Center_xyz cxyz_no_gps;
-    float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
+    //float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
     api_common_data_t g_acc;
     api_vel_data_t cvel_no_gps;
     int integration_count;
@@ -175,7 +176,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
     double k1d, k1p, k2d, k2p;
     float target_dist;
     int arrive_flag = 1;
-    int image_height_use_flag = 0;
+    //int image_height_use_flag = 0;
     
     
     DJI_Pro_Get_Pos(&_focus_point);
@@ -186,7 +187,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
     user_ctrl_data.roll_or_x = 0;
     user_ctrl_data.pitch_or_y = 0;
     
-    target_has_updated = 0;
+    //target_has_updated = 0;
     integration_count = 0;
     x_n_vel = y_e_vel = 0;
     
@@ -218,19 +219,19 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
         
         pitch_rard	= asin( 		2 * (_cquaternion.q0 * _cquaternion.q2 - _cquaternion.q3 * _cquaternion.q1) 		);
         
-        yaw_rard	= atan2(		2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
-                            1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3) 	);
+       // yaw_rard	= atan2(		2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
+       //                     1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3) 	);
         
-        yaw_angle	= 180 / PI * yaw_rard;
-        roll_angle	= 180 / PI * roll_rard;
-        pitch_angle = 180 / PI * pitch_rard;
+        //yaw_angle	= 180 / PI * yaw_rard;
+        //roll_angle	= 180 / PI * roll_rard;
+        //pitch_angle = 180 / PI * pitch_rard;
         
         if ( 1 )
         {
             if( XY_Get_Offset_Data(&offset, OFFSET_GET_ID_A) == 0 && arrive_flag == 1)
             {
                 arrive_flag = 0;
-                target_has_updated = 1;
+                //target_has_updated = 1;
                 
                 offset.x = offset.x / 100;
                 offset.y = offset.y / 100;
@@ -315,7 +316,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
             if(integration_count > 100) // 2 secend reset the integration.
             {
                 arrive_flag = 1;		// add for get into update the target
-                target_has_updated = 0;
+                //target_has_updated = 0;
                 integration_count = 0;
                 
                 cxyz_no_gps.x = 0;
@@ -362,7 +363,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
             if (last_dis_to_mark < (target_dist * 0.5) )
             {
                 printf("last_dis_to_mark is %f\n", last_dis_to_mark);
-                target_has_updated = 0;
+                //target_has_updated = 0;
                 integration_count = 100;
                 arrive_flag = 1;
             }
@@ -400,10 +401,12 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_ve
         {
             return 1;
         }
-        
-        DJI_Pro_Attitude_Control(&user_ctrl_data);
-        set_ctrl_data(user_ctrl_data);
-        usleep(20000);
+        else 
+        {
+        	DJI_Pro_Attitude_Control(&user_ctrl_data);
+        	set_ctrl_data(user_ctrl_data);
+        	usleep(20000);
+        }
     }
 }
 
@@ -558,10 +561,11 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
     api_pos_data_t _cpos;
     attitude_data_t user_ctrl_data;
     api_quaternion_data_t cur_quaternion;
-    float yaw_angle, roll_angle, pitch_angle;
-    float yaw_rard, roll_rard, pitch_rard;
+    //float yaw_angle, roll_angle, pitch_angle;
+    //float yaw_rard;
+    float roll_rard, pitch_rard;
     Offset offset,offset_adjust;
-    int target_update=0;
+    //int target_update=0;
     int arrive_flag = 1;
     float x_camera_diff_with_roll;
     float y_camera_diff_with_pitch;
@@ -571,7 +575,7 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
     XYZ cXYZ;
     Center_xyz cxyz;
     double y_e_vel, x_n_vel;
-    float last_dis_to_mark, last_velocity;
+    float last_dis_to_mark;
 
     float assign_height;
     
@@ -597,11 +601,11 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
         DJI_Pro_Get_Quaternion(&cur_quaternion);
         roll_rard = atan2(2*(cur_quaternion.q0*cur_quaternion.q1+cur_quaternion.q2*cur_quaternion.q3),1-2*(cur_quaternion.q1*cur_quaternion.q1+cur_quaternion.q2*cur_quaternion.q2));
         pitch_rard = asin(2*(cur_quaternion.q0*cur_quaternion.q2-cur_quaternion.q3*cur_quaternion.q1));
-        yaw_rard = atan2(2*(cur_quaternion.q0*cur_quaternion.q3+cur_quaternion.q1*cur_quaternion.q2),1-2*(cur_quaternion.q2*cur_quaternion.q2+cur_quaternion.q3*cur_quaternion.q3));
+       // yaw_rard = atan2(2*(cur_quaternion.q0*cur_quaternion.q3+cur_quaternion.q1*cur_quaternion.q2),1-2*(cur_quaternion.q2*cur_quaternion.q2+cur_quaternion.q3*cur_quaternion.q3));
         
-        yaw_angle = 180 / PI * yaw_rard;
-        roll_angle = 180 / PI * roll_rard;
-        pitch_angle = 180 / PI * pitch_rard;
+        //yaw_angle = 180 / PI * yaw_rard;
+        //roll_angle = 180 / PI * roll_rard;
+        //pitch_angle = 180 / PI * pitch_rard;
 
         /*
         dele by zhanglei 0220, no flight test!!
@@ -675,7 +679,7 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
                 cur_target_xyz.y = cur_target_xyz.y * MAX_EACH_DIS_IMAGE_GET_CLOSE / sqrt(pow(cur_target_xyz.x, 2)+pow(cur_target_xyz.y, 2));
             }
             
-            target_update=1;
+            //target_update=1;
         
         #if DEBUG_PRINT             
             printf("target x,y-> %.8lf.\t%.8lf.\t%.8lf.\t\n", cur_target_xyz.x,cur_target_xyz.y,last_dis_to_mark);
@@ -713,7 +717,7 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
         if(last_dis_to_mark < (10*HOVER_POINT_RANGE) )//from 1.5 to 10*0.1=1, zhanglei 0123
         {
             arrive_flag = 1;
-            target_update=0;
+            //target_update=0;
         }
             
 
@@ -742,26 +746,28 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_
     api_quaternion_data_t _cquaternion;
     attitude_data_t user_ctrl_data;
     api_pos_data_t _focus_point;
-    float yaw_angle, roll_angle, pitch_angle;
-    float yaw_rard, roll_rard, pitch_rard;
+    //float yaw_angle, roll_angle, pitch_angle;
+    //float yaw_rard;
+    float roll_rard;
+    float pitch_rard;
     Offset offset, offset_adjust;
     float x_camera_diff_with_roll, y_camera_diff_with_pitch;
-    float last_dis_to_mark, last_velocity;
+    float last_dis_to_mark;
     Center_xyz cur_target_xyz;
     Center_xyz cxyz_no_gps;
-    float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
+    //float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
     api_common_data_t g_acc;
     api_vel_data_t cvel_no_gps;
     int integration_count_xy, integration_count_z;
     double y_e_vel, x_n_vel;
-    double k1d, k1p, k2d, k2p;
+    //double k1d, k1p, k2d, k2p;
     float target_dist;
     int arrive_flag = 1;
     int ultra_height_use_flag = 0;
     int return_timeout = 0;
     int return_timeout_flag = 0;
-    struct timespec start = {0, 0}, end = {0, 0};
-    double cost_time = 0.02;
+    //struct timespec start = {0, 0}, end = {0, 0};
+    //double cost_time = 0.02;
     float ultra_height=0;
 	float ultra_tmp=0;
 	Queue* pq=create(4);
@@ -809,16 +815,17 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_
     
     cvel_no_gps.x = _cvel.x;
     cvel_no_gps.y = _cvel.y;
+	cvel_no_gps.z = _cvel.z;
     
     target_dist = 0;
 
-	
+/*	
 	//hover to FP, but lower kp to the FP without image
     k1d = 0.05;
     k1p = 0.1;	//simulation test 0113;adjust to 0.05,flight test ok 0114
     k2d = 0.05;
     k2p = 0.1;
-    
+ */   
     while(1)
     {
         DJI_Pro_Get_Pos(&_cpos);
@@ -1046,8 +1053,8 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_DELIVER(float _max_
 					
 					pitch_rard	= asin( 		2 * (_cquaternion.q0 * _cquaternion.q2 - _cquaternion.q3 * _cquaternion.q1) 		);
 					
-					yaw_rard	= atan2(		2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
-										1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3) 	);
+					//yaw_rard	= atan2(		2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
+					//					1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3) 	);
 					
 					//yaw_angle	= 180 / PI * yaw_rard;
 					//roll_angle	= 180 / PI * roll_rard;
@@ -1376,9 +1383,9 @@ int XY_Ctrl_Drone_To_Spot_Hover_And_Put_DELIVER(void)
     attitude_data_t user_ctrl_data;
     api_pos_data_t _focus_point;
     double k1d_fp, k1p_fp, k2d_fp, k2p_fp;
-    double last_distance_xyz = 0.0;
+    //double last_distance_xyz = 0.0;
     double x_n_vel, y_e_vel;
-    int wait_time = 0;
+    //int wait_time = 0;
     
     Center_xyz cxyz_no_gps;
     api_common_data_t g_acc;
@@ -1466,15 +1473,16 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
     api_quaternion_data_t _cquaternion;
     attitude_data_t user_ctrl_data;
     api_pos_data_t _focus_point;
-    float yaw_angle, roll_angle, pitch_angle;
-    float yaw_rard, roll_rard, pitch_rard;
+    //float yaw_angle, roll_angle, pitch_angle;
+    //float yaw_rard;
+    float roll_rard, pitch_rard;
     Offset offset, offset_adjust;
-    int target_has_updated = 0;
+    //int target_has_updated = 0;
     float x_camera_diff_with_roll, y_camera_diff_with_pitch;
-    float last_dis_to_mark, last_velocity;
+    float last_dis_to_mark;
     Center_xyz cur_target_xyz;
     Center_xyz cxyz_no_gps;
-    float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
+    //float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
     api_common_data_t g_acc;
     api_vel_data_t cvel_no_gps;
     int integration_count;
@@ -1482,7 +1490,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
     double k1d, k1p, k2d, k2p;
     float target_dist;
     int arrive_flag = 1;
-    int image_height_use_flag = 0;
+    //int image_height_use_flag = 0;
 
     
     DJI_Pro_Get_Pos(&_focus_point);
@@ -1493,7 +1501,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
     user_ctrl_data.roll_or_x = 0;
     user_ctrl_data.pitch_or_y = 0;
             
-    target_has_updated = 0;
+    //target_has_updated = 0;
     integration_count = 0;
     x_n_vel = y_e_vel = 0;
 
@@ -1525,19 +1533,19 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
         
         pitch_rard  = asin(         2 * (_cquaternion.q0 * _cquaternion.q2 - _cquaternion.q3 * _cquaternion.q1)         );
         
-        yaw_rard    = atan2(        2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
-                                    1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3)     );
+        //yaw_rard    = atan2(        2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
+         //                           1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3)     );
 
-        yaw_angle   = 180 / PI * yaw_rard;
-        roll_angle  = 180 / PI * roll_rard;
-        pitch_angle = 180 / PI * pitch_rard;
+        //yaw_angle   = 180 / PI * yaw_rard;
+        //roll_angle  = 180 / PI * roll_rard;
+        //pitch_angle = 180 / PI * pitch_rard;
 
         if ( 1 )    //delete other condition on 01-27
         {   
             if( XY_Get_Offset_Data(&offset, OFFSET_GET_ID_A) == 0 && arrive_flag == 1)
             {
                 arrive_flag = 0;
-                target_has_updated = 1;
+                //target_has_updated = 1;
                 
                 offset.x = offset.x / 100;
                 offset.y = offset.y / 100;
@@ -1621,7 +1629,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
             if(integration_count > 100) // 2 secend reset the integration.
             {
                 arrive_flag = 1;        // add for get into update the target
-                target_has_updated = 0;
+               // target_has_updated = 0;
                 integration_count = 0;
 
                 cxyz_no_gps.x = 0;
@@ -1668,7 +1676,7 @@ int XY_Ctrl_Drone_Up_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_vel
             if (last_dis_to_mark < (target_dist * 0.5) )
             {
                 printf("last_dis_to_mark is %f\n", last_dis_to_mark);
-                target_has_updated = 0;
+                //target_has_updated = 0;
                 integration_count = 100;
                 arrive_flag = 1;
             }
@@ -1729,15 +1737,16 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     api_quaternion_data_t _cquaternion;
     attitude_data_t user_ctrl_data;
     api_pos_data_t _focus_point;
-    float yaw_angle, roll_angle, pitch_angle;
-    float yaw_rard, roll_rard, pitch_rard;
+    //float yaw_angle, roll_angle, pitch_angle;
+    //float yaw_rard;
+    float roll_rard, pitch_rard;
     Offset offset, offset_adjust;
-    int target_has_updated = 0;
+    //int target_has_updated = 0;
     float x_camera_diff_with_roll, y_camera_diff_with_pitch;
-    float last_dis_to_mark, last_velocity;
+    float last_dis_to_mark;
     Center_xyz cur_target_xyz;
     Center_xyz cxyz_no_gps;
-    float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
+    //float gps_ctrl_x,gps_ctrl_y, del_ctrl_x_gps, del_ctrl_y_gps;
     api_common_data_t g_acc;
     api_vel_data_t cvel_no_gps;
     int integration_count_xy, integration_count_z;
@@ -1746,7 +1755,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     float target_dist;
     int arrive_flag = 1;
     int ultra_height_use_flag = 0;
-    float ultra_z1, ultra_z2;
+    float ultra_z1 = 0, ultra_z2 = 0;
     float ultra_height = 0;
 	float ultra_tmp = 0;
     int ultra_z_2_5_flag = 0, ultra_z_3_0_flag = 0;
@@ -1763,7 +1772,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     user_ctrl_data.roll_or_x = 0;
     user_ctrl_data.pitch_or_y = 0;
             
-    target_has_updated = 0;
+    //target_has_updated = 0;
     integration_count_xy = 0;
     integration_count_z = 0;
     x_n_vel = y_e_vel = 0;
@@ -1777,6 +1786,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     
     cvel_no_gps.x = _cvel.x;
     cvel_no_gps.y = _cvel.y;
+	cvel_no_gps.z = _cvel.z;
 
     target_dist = 0;
 
@@ -1797,12 +1807,12 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
         
         pitch_rard  = asin(         2 * (_cquaternion.q0 * _cquaternion.q2 - _cquaternion.q3 * _cquaternion.q1)         );
         
-        yaw_rard    = atan2(        2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
-                                    1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3)     );
+        //yaw_rard    = atan2(        2 * (_cquaternion.q0 * _cquaternion.q3 + _cquaternion.q1 * _cquaternion.q2),
+         //                           1 - 2 * (_cquaternion.q2 * _cquaternion.q2 + _cquaternion.q3 * _cquaternion.q3)     );
 
-        yaw_angle   = 180 / PI * yaw_rard;
-        roll_angle  = 180 / PI * roll_rard;
-        pitch_angle = 180 / PI * pitch_rard;
+        //yaw_angle   = 180 / PI * yaw_rard;
+        //roll_angle  = 180 / PI * roll_rard;
+        //pitch_angle = 180 / PI * pitch_rard;
 
         if(XY_Get_Ultra_Data(&ultra_tmp, ULTRA_GET_ID_B) == 0)
         {
@@ -1881,7 +1891,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
         if( XY_Get_Offset_Data(&offset, OFFSET_GET_ID_A) == 0 && arrive_flag == 1 )
         {
             arrive_flag = 0;
-            target_has_updated = 1;
+            //target_has_updated = 1;
             
             offset.x = offset.x / 100;
             offset.y = offset.y / 100;
@@ -1968,7 +1978,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
         if(integration_count_xy > 100) // 2 secend reset the integration.
         {
             arrive_flag = 1;        // add for get into update the target
-            target_has_updated = 0;
+            //target_has_updated = 0;
             integration_count_xy = 0;
 
             cxyz_no_gps.x = 0;
@@ -2023,7 +2033,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
         if (last_dis_to_mark < (target_dist * 0.25) )
         {
             printf("last_dis_to_mark is %f\n", last_dis_to_mark);
-            target_has_updated = 0;
+            //target_has_updated = 0;
             integration_count_xy = 100;
             arrive_flag = 1;
         }
