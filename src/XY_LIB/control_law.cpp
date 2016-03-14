@@ -817,7 +817,7 @@ int XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER(void)
         //last_dis_to_mark=sqrt(pow(offset_adjust.y, 2)+pow(offset_adjust.x, 2));
         
         //if (last_dis_to_mark < HOVER_POINT_RANGE)
-        if(last_dis_to_mark < (10*HOVER_POINT_RANGE) )//from 1.5 to 10*0.1=1, zhanglei 0123
+        if(last_dis_to_mark < (1.0) )//modi from (10*HOVER_POINT_RANGE to 1.0)from 1.5 to 10*0.1=1, zhanglei 0123
         {
             arrive_flag = 1;
             //target_update=0;
