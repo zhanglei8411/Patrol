@@ -25,6 +25,7 @@ struct Leg
 	XYZ _start;
 	XYZ _end;
 	XYZ _current;
+	int criFlag;//added by zzy 0308 to classify the ponints
 };
 
 typedef struct _Leg_Node

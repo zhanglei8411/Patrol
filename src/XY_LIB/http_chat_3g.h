@@ -26,8 +26,8 @@
 
 
 
-//#define SERVER_NAME		"cs.sysmagic.com.cn"
-#define SERVER_NAME		"demo.sysmagic.com.cn"
+#define SERVER_NAME		"cs.sysmagic.com.cn"
+//#define SERVER_NAME		"demo.sysmagic.com.cn"
 
 #define SERVER_PORT		(80)
 

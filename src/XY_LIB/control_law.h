@@ -14,9 +14,9 @@
 #define PI								(3.1415926)
 
 /*move xy para*/
-#define HOVER_POINT_RANGE 				(0.1)	//FP use
+#define HOVER_POINT_RANGE 				(10)	//FP use
 #define TRANS_TO_HOVER_DIS 				(13.0) 	// for P2P trans to FP, can del
-#define P2P_MAX_VEL_N_E					(3.0)
+#define P2P_MAX_VEL_N_E					(2.0)
 
 /*ultra para for z*/
 #define ULTRA_INSTALL_HEIGHT            (0.04) //install diff of ultrasonic equip, 0.135m

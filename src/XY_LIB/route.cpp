@@ -84,7 +84,7 @@ static void *drone_deliver_task_thread_func(void * arg)
 		goto error;
 	}
 	cur_legn = deliver_route_head->next;
-	
+	//cur_legn = deliver_route_head;
 	
 	printf("------------------ deliver task start -----------------\n");
 	while(1)
@@ -158,6 +158,7 @@ static void *drone_goback_task_thread_func(void * arg)
 	}
 	cur_legn = goback_route_head->next;
 	*/
+	cur_legn = deliver_route_head;
 	printf("------------------ goback task start ------------------\n");
 	while(1)
 	{
@@ -704,15 +705,127 @@ void XY_Release_List_Resource(Leg_Node *_head)
 }
 
 
+
+/* ==============================added by zzy 160307============================================== */
+int insert_tgt (double lata, double lnga, double latb, double lngb, float interval, unsigned int leg_num, float cri_range)
+{
+	int i = 0;
+	int n = 0;
+	double in_lng;
+	double in_lat;
+	double approx_dis,approx_dis_new, lngD, latD;
+	
+	approx_dis = sqrt(pow((lata - latb), 2) + pow((lnga - lngb), 2));
+	
+	n = approx_dis / ( 0.00001 / 180 * 3.1415926 * interval);  // Angle2Metre = 0.00001 deg/m = 0.00001 / 180 * 3.1415926 rad/m, need to be more accurate
+	
+	if(n == 0)
+	{
+		printf("-----Not need insertion-----\n");
+		return 0;
+	}
+	
+	latD = (latb - lata) / n; //lat interval
+	lngD = (lngb - lnga) / n; //lgn interval
+	printf("-----lata is %lf-----\n", lata);
+	printf("-----lnga is %lf-----\n", lnga);
+	printf("-----latD is %lf-----\n", latD);
+	
+	in_lat = lata;
+	in_lng = lnga; // initialize insert point
+	
+	for (i = 1; i < n; i++)
+	{	
+		/*calculate next point by interval*/
+		
+		approx_dis_new = sqrt(pow(i * latD, 2) + pow(i * lngD, 2));
+		if ( (approx_dis_new < cri_range * 0.00001 / 180 * 3.1415926) || ((approx_dis - approx_dis_new) < cri_range * 0.00001 / 180 * 3.1415926))
+			{
+				continue;
+			}
+
+
+		in_lat += latD;
+		in_lng += lngD;
+		printf("-----in_lat is %lf-----\n", in_lat);
+		/*store insert points*/
+		set_leg_seq(&task_info, i + leg_num);
+		set_leg_end_pos(&task_info, in_lng, in_lat, ORIGIN_IN_HENGSHENG_ALTI);
+		printf("----add interpolated route %d-------\n",i + leg_num);
+		task_info.criFlag = 0;//mark as interpolated route node
+		if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+		{
+			printf("Route Node Insertion ERROR.\n");
+			return -1;
+		}
+	}
+	return n - 1 ;// return nodes added 
+}
+
+
+/* ==============================added by zzy 160309============================================== */
+
+int insert_curve(double lata, double lnga, double latb, double lngb,double latc, double lngc, int n, float cri_range ,unsigned int leg_num)
+{
+	int i = 0;
+	double t = 1.0 / (n + 1);
+	double lat_0,lng_0, lat_2, lng_2, lat_temp, lng_temp, cri_range_deg;
+
+	cri_range_deg = cri_range * 0.00001 / 180 * 3.1415926;
+    //需要解决航路点太近的问题
+	if( cri_range_deg > sqrt(pow((lata - latb), 2) + pow((lnga - lngb), 2))|| cri_range_deg > sqrt(pow((latc - latb), 2) + pow((lngc - lngb), 2)))
+	{
+		set_leg_seq(&task_info, 1 + leg_num);
+		set_leg_end_pos(&task_info, lngb, latb, ORIGIN_IN_HENGSHENG_ALTI);
+		printf("----add critical route %d-------\n",1 + leg_num);
+		task_info.criFlag = 1;//mark as critical route node
+		if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+			{
+				printf("Route Node Insertion ERROR.\n");
+				return -1;
+			}
+		return 0;
+
+	}
+	
+	lat_0 = latb - cri_range_deg * (latb-lata)/sqrt(pow((lata - latb), 2) + pow((lnga - lngb), 2));
+	lng_0 = lngb - cri_range_deg * (lngb-lnga)/sqrt(pow((lata - latb), 2) + pow((lnga - lngb), 2));// set first point ,by the way the second point is point b
+
+	
+	lat_2 = latb + cri_range_deg * (latc-latb)/sqrt(pow((latc - latb), 2) + pow((lngc - lngb), 2));
+	lng_2 = lngb + cri_range_deg * (lngc-lngb)/sqrt(pow((latc - latb), 2) + pow((lngc - lngb), 2));// set third point
+
+	for(i = 1 ; i <= n ; i++)
+	{
+	lat_temp = pow((1 - t * i), 2)*lat_0 + 2 * t * i * (1 - t * i) * latb + pow(t * i,2) * lat_2;		
+	lng_temp = pow((1 - t * i), 2)*lng_0 + 2 * t * i * (1 - t * i) * lngb + pow(t * i,2) * lng_2;
+
+	/*store insert points*/
+	set_leg_seq(&task_info, i + leg_num);
+	set_leg_end_pos(&task_info, lng_temp, lat_temp, ORIGIN_IN_HENGSHENG_ALTI);
+	printf("----add critical route %d-------\n",i + leg_num);
+	task_info.criFlag = 1;//mark as critical route node
+	if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+		{
+			printf("Route Node Insertion ERROR.\n");
+			return -1;
+		}
+	
+	}
+	return 0;
+}
+
 int init_deliver_route_list(void)
 {
 	int ret = 0;
 	static api_pos_data_t start_pos;
-	int route_seq =0;
+	//int route_seq =0;
+	int i=0;
 	int route_count=0;
 	double arrLng[255] = {};
 	double arrLat[255] = {};
 	double arrHeight[255] = {};
+	extern cJSON *json;
 	cJSON *taskArry;
 	int arrySize;
 	cJSON *tasklist;
@@ -731,9 +844,12 @@ int init_deliver_route_list(void)
 		XY_Debug_Send_At_Once("Getting start pos\n");
 	}while(start_pos.longti == 0);
 
-	set_leg_start_pos(&task_info, start_pos.longti, start_pos.lati, 0.100000);	
-   
-	extern cJSON *json;
+	set_leg_start_pos(&task_info, start_pos.longti, start_pos.lati, 0.100000);
+	arrLng[0] = task_info.start._longti;
+	arrLat[0] = task_info.start._lati;
+	arrHeight[0] = task_info.start._alti;
+	printf("[%lf,%lf]\n", arrLng[0], arrLat[0]);
+	route_count ++;
 	
 	taskArry=cJSON_GetObjectItem(json,"data");//取数组  
 	arrySize=cJSON_GetArraySize(taskArry);//数组大小 
@@ -745,64 +861,55 @@ int init_deliver_route_list(void)
 		printf("[%lf,%lf,%lf]\n",cJSON_GetArrayItem(tasklist,0)->valuedouble,
 			                     cJSON_GetArrayItem(tasklist,1)->valuedouble,
 			                     cJSON_GetArrayItem(tasklist,2)->valuedouble); 
+		printf("[%lf,%lf,%lf]\n", ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * 3.1415926,
+			                     ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * 3.1415926,
+			                     cJSON_GetArrayItem(tasklist,2)->valuedouble);
 		
-		arrLng[route_count] = (cJSON_GetArrayItem(tasklist,0)->valuedouble/180) * 3.1415926;
-		arrLat[route_count] = (cJSON_GetArrayItem(tasklist,1)->valuedouble/180) * 3.1415926;
+		arrLng[route_count] = ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * 3.1415926;
+		arrLat[route_count] = ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * 3.1415926;
 		arrHeight[route_count] = cJSON_GetArrayItem(tasklist,2)->valuedouble;
-		
-		set_leg_seq(&task_info, route_count);
-		set_leg_end_pos(&task_info, arrLng[route_count], arrLat[route_count], arrHeight[route_count]);
-		ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
-		printf("----add route %d-------\n",route_count);
-		if(ret != 0)
-		{
-			printf("Add Deliver Route Node ERROR.\n");
-			return -1;
-		}
 		
 		tasklist=tasklist->next; 
 		route_count++;
 	} 	 
-	route_seq = cJSON_GetObjectItem(json, "seq")->valueint;
-	set_leg_seq(&task_info, route_seq);
-/*
-	for(i = 0; i < 255; i++)
+	//route_seq = cJSON_GetObjectItem(json, "seq")->valueint;
+
+	//插入第一个点 (DJI系)
+	set_leg_seq(&task_info, 0);
+	set_leg_end_pos(&task_info, arrLng[0], arrLat[0], arrHeight[0]);
+	task_info.criFlag = 1;
+	ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
+	printf("----add route %d-------\n",0);
+	if(ret != 0)
 	{
-		arr_lng[i] = (cJSON_GetObjectItem(json, "lng")->valuedouble/180)*3.1415926; 
-		arr_lat[i] = (cJSON_GetObjectItem(json, "lat")->valuedouble/180)*3.1415926;
+		printf("Add Deliver Route Node ERROR.\n");
+		return -1;
 	}
-
-	arr_lng[0] = (120.001528/180)*3.1415926;
-	arr_lat[0] = (30.279982/180)*3.1415926;
 	
-	arr_lng[1] = (120.000204/180)*3.1415926;
-	arr_lat[1] = (30.281751/180)*3.1415926;
+	insert_curve(arrLat[0],arrLng[0],arrLat[1],arrLng[1],arrLat[2],arrLng[2],NUMBER_OF_TURN_POINTS,RANGE_OF_TURN,task_info.leg_seq);
 	
-	arr_lng[2] = (120.001708/180)*3.1415926;
-	arr_lat[2] = (30.282096/180)*3.1415926;
-	
-	arr_lng[3] = (120.002786/180)*3.1415926;
-	arr_lat[3] = (30.280223/180)*3.1415926;
-
-	
-	for(i = 0; i < 4; i++)
+	//插入中间点(GE系)
+	for(i = 1; i < route_count-2; i++)
 	{
-		//sprintf(lng_seq, "lng_%d", i);
-		//sprintf(lat_seq, "lat_%d", i);	
-		//lng = (cJSON_GetObjectItem(json, "lng")->valuedouble/180)*3.1415926; 
-		//lat = (cJSON_GetObjectItem(json, "lat")->valuedouble/180)*3.1415926;
-		
-		set_leg_seq(&task_info, i);
-		set_leg_end_pos(&task_info, arr_lng[i], arr_lat[i], ORIGIN_IN_HENGSHENG_ALTI);
-		ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
-		printf("----add route %d-------\n",i);
-		if(ret != 0)
-		{
-			printf("Add Deliver Route Node ERROR.\n");
-			return -1;
-		}
-	}	
-*/	
+		insert_tgt(arrLat[i],arrLng[i],arrLat[i + 1],arrLng[i + 1], INTERVAL_OF_ROUTE_NODE, task_info.leg_seq,RANGE_OF_TURN);
+		insert_curve(arrLat[i],arrLng[i],arrLat[i + 1],arrLng[i + 1],arrLat[i + 2],arrLng[i + 2],NUMBER_OF_TURN_POINTS,RANGE_OF_TURN,task_info.leg_seq);
+	}
+	insert_tgt(arrLat[route_count-2],arrLng[route_count-2],arrLat[route_count-1],arrLng[route_count-1], INTERVAL_OF_ROUTE_NODE, task_info.leg_seq,RANGE_OF_TURN);
+	
+	//插入最后一个点(GE系)
+	insert_curve(arrLat[route_count-2],arrLng[route_count-2],arrLat[route_count-1],arrLng[route_count-1],arrLat[0],arrLng[0],NUMBER_OF_TURN_POINTS,RANGE_OF_TURN,task_info.leg_seq);
+#if 0
+	set_leg_end_pos(&task_info, arrLng[route_count-1], arrLat[route_count-1], arrHeight[route_count-1]);
+	set_leg_seq(&task_info, 1+task_info.leg_seq);
+	task_info.criFlag = 1;
+	ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
+	printf("----add route %d-------\n",task_info.leg_seq);
+	if(ret != 0)
+	{
+		printf("Add Deliver Route Node ERROR.\n");
+		return -1;
+	}
+#endif	
 	return 0;
 }
 
@@ -887,34 +994,42 @@ int add_leg_node(Leg_Node *_head, struct Leg _leg)
 	//int valid_seq;
 	
 	pcur = _head;
-	set_leg_end_pos(&(pcur->leg), _leg.start._longti, _leg.start._lati, _leg.start._alti);
-	while(pcur->next)
+	if(_leg.leg_seq == 0)
 	{
-		pcur = pcur->next;
+		set_leg_end_pos(&(pcur->leg), _leg.start._longti, _leg.start._lati, _leg.start._alti);
+		set_leg_seq(&(pcur->leg), _leg.leg_seq);
+		pcur->leg.criFlag = _leg.criFlag;
 	}
+	else
+	{
+		while(pcur->next)
+		{
+			pcur = pcur->next;
+		}
 
-	/*
-	valid_seq = pcur->leg.leg_seq+1;
-	if(_leg.leg_seq != valid_seq)
-	{
-		return -1;
+		/*
+		valid_seq = pcur->leg.leg_seq+1;
+		if(_leg.leg_seq != valid_seq)
+		{
+			return -1;
+		}
+		*/
+		pnew = (Leg_Node *)calloc(1, sizeof(Leg_Node));
+		if(pnew == NULL)
+			return -1;
+		
+		set_leg_seq(&(pnew->leg), _leg.leg_seq);
+		set_leg_start_pos(&(pnew->leg), _leg.start._longti, _leg.start._lati, _leg.start._alti);
+		set_leg_end_pos(&(pnew->leg), _leg.end._longti, _leg.end._lati, _leg.end._alti);
+		pnew->leg.criFlag = _leg.criFlag;
+		//set_leg_start_xyz();
+		//set_leg_end_xyz();
+		
+		pcur->next = pnew;
+		pnew->prev = pcur;
+		printf("pcur->next is %.8lf,%.8lf\n",pcur->next->leg.end._longti,pcur->next->leg.end._lati);
+		pnew->next = NULL;
 	}
-	*/
-	pnew = (Leg_Node *)calloc(1, sizeof(Leg_Node));
-	if(pnew == NULL)
-		return -1;
-	
-	set_leg_seq(&(pnew->leg), _leg.leg_seq);
-	set_leg_num(&(pnew->leg), _leg.leg_num);
-	set_leg_start_pos(&(pnew->leg), _leg.start._longti, _leg.start._lati, _leg.start._alti);
-	set_leg_end_pos(&(pnew->leg), _leg.end._longti, _leg.end._lati, _leg.end._alti);
-	//set_leg_start_xyz();
-	//set_leg_end_xyz();
-	
-	pcur->next = pnew;
-	pnew->prev = pcur;
-	printf("pcur->next is %.8lf,%.8lf\n",pcur->next->leg.end._longti,pcur->next->leg.end._lati);
-	pnew->next = NULL;
 
 	return 0;
 }

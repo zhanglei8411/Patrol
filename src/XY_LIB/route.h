@@ -17,6 +17,10 @@
 #include "wireless_debug.h"
 #include "common/common.h"
 #include "control_steer.h"
+/*-----node for route------ */
+#define INTERVAL_OF_ROUTE_NODE                                  (10)
+#define RANGE_OF_TURN                                           (10)
+#define NUMBER_OF_TURN_POINTS                                   (20)
 
 /*-----velocity for up down------*/
 /*deliver up*/

@@ -10,6 +10,23 @@ extern pthread_cond_t debug_cond;
 extern int drone_goback;
 extern Leg_Node *cur_legn;
 
+static void limit_range(double *src_data,double range)
+{
+	if( *src_data > 0 )
+	{
+		if( *src_data > range )
+		{
+			*src_data = range;
+		}
+	}
+	else
+	{
+		if( *src_data < (0 - range) )
+		{
+			*src_data = 0 - range;
+		}
+	}		
+}
 
 void init_g_origin_pos(api_pos_data_t *_g_origin_pos)
 {
@@ -75,6 +92,8 @@ int XY_Ctrl_Drone_To_Assign_Height_Has_MaxVel_And_FP_DELIVER(float _max_vel, flo
     api_pos_data_t _cpos;
     attitude_data_t user_ctrl_data;
     double k1d_fp, k1p_fp, k2d_fp, k2p_fp;
+	api_quaternion_data_t _cquaternion;    //add 0314
+	Body_Angle cur_body_angle;             //add 0314
     XYZ f_XYZ, c_XYZ;
     Center_xyz fxyz, cxyz;
     //double last_distance_xyz = 0.0;
@@ -101,6 +120,8 @@ int XY_Ctrl_Drone_To_Assign_Height_Has_MaxVel_And_FP_DELIVER(float _max_vel, flo
     {
         DJI_Pro_Get_Pos(&_cpos);
         DJI_Pro_Get_GroundVo(&_cvel);
+		DJI_Pro_Get_Quaternion(&_cquaternion);
+		QUA2ANGLE(_cquaternion,&cur_body_angle) ;         
 
         /* focus to point */
         geo2XYZ(_cpos, &c_XYZ);
@@ -136,7 +157,9 @@ int XY_Ctrl_Drone_To_Assign_Height_Has_MaxVel_And_FP_DELIVER(float _max_vel, flo
         {
             return 1;
         }
-        
+
+		cur_body_angle.yaw_deg = 0.9 * cur_body_angle.yaw_deg; //add 0314
+		user_ctrl_data.yaw = cur_body_angle.yaw_deg;           //add 0314
         DJI_Pro_Attitude_Control(&user_ctrl_data);
         usleep(20000);// Height control period
     }
@@ -421,14 +444,16 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
 {
     api_vel_data_t _cvel;
     api_pos_data_t _cpos, _epos, _spos;
+	api_common_data_t g_acc; //add acc - 0308zzy
+	float dir_Yaw = 0; // add direction - 0309zzy
     attitude_data_t user_ctrl_data;
     XYZ eXYZ, cXYZ;
     Center_xyz exyz, cxyz;
     double last_distance_xyz = 0.0;
     double x_n_vel, y_e_vel;
-    double k1d, k1p, k2d, k2p;
-    double k1d_fp, k1p_fp, k2d_fp, k2p_fp;
-    double result = 0.0;
+    //double k1d, k1p, k2d, k2p;
+    //double k1d_fp, k1p_fp, k2d_fp, k2p_fp;
+    //double result = 0.0;
     
     //HORI_VEL and VERT_VEL
     user_ctrl_data.ctrl_flag = 0x40;
@@ -446,7 +471,7 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
     
     geo2XYZ(_epos, &eXYZ);
     XYZ2xyz(_spos, eXYZ, &exyz);
-    
+/*    
     if(!_goback)
     {
         exyz.x -= DELTA_X_M_GOOGLEEARTH;
@@ -454,31 +479,107 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
         exyz.z -= DELTA_Z_M_GOOGLEEARTH;
     }
     
-    k1d = 0.05;
-    k1p = 0.3;  //01-23 (0.2 to 0.3)
-    k2d = 0.05;
-    k2p = 0.3;  //01-23 (0.2 to 0.3)
-    
-    //For focus to point control
-    k1d_fp = 0.05;
-    k1p_fp = 0.3;   //01-23 (0.2 to 0.3)
-    k2d_fp = 0.05;
-    k2p_fp = 0.3;   //01-23 (0.2 to 0.3)
-    
-    
+*/    
     while(1)
     {
         DJI_Pro_Get_Pos(&_cpos);
         DJI_Pro_Get_GroundVo(&_cvel);
+		DJI_Pro_Get_GroundAcc(&g_acc); //getacc - 0308zzy
         
         geo2XYZ(_cpos, &cXYZ);
         XYZ2xyz(_spos, cXYZ, &cxyz);
-        //printf("-----seq=%d,cur_longti=%lf,cur_lati=%lf-------\n",cur_legn->leg.leg_seq,cur_legn->leg.end._longti,cur_legn->leg.end._lati);
-        //printf("-----start_longti=%lf,start_lati=%lf,cur_longti=%lf,cur_lati=%lf-------\n",cur_legn->leg.start._longti,cur_legn->leg.start._lati,_epos.longti,_epos.lati);
+        //printf("-----seq=%d-------\n",cur_legn->leg.leg_seq);
+        //printf("-----_cpos.longti=%.8lf,_cpos.lati%.8lf,cur_longti=%.8lf,cur_lati=%.8lf-------\n",_cpos.longti,_cpos.lati,cur_legn->leg.end._longti,cur_legn->leg.end._lati);
         last_distance_xyz = sqrt(pow((cxyz.x - exyz.x), 2) + pow((cxyz.y - exyz.y), 2));
         
         //01-23 (2*HOVER_POINT_RANGE to 5*HOVER_POINT_RANGE)
-        if(last_distance_xyz < (5*HOVER_POINT_RANGE) )//Get the point and exit
+#if 1
+
+		if(((last_distance_xyz < (HOVER_POINT_RANGE)) && (cur_legn->leg.criFlag == 0))||((last_distance_xyz < 0.25) && (cur_legn->leg.criFlag == 1)))//Get the point and exit,0.1 is HOVER_POINT_RANGE_Critical 
+        {
+        	if(cur_legn->next != NULL && !_goback)
+        	{
+        		printf("Has reached point %d, cri_flag = %d,longti = %.8lf,lati = %.8lf\n",cur_legn->leg.leg_seq,
+					                                                                   cur_legn->leg.criFlag,
+		    	                                                                       cur_legn->leg.end._longti,
+		    	                                                                       cur_legn->leg.end._lati);
+        		cur_legn = cur_legn->next;
+				
+		    	_epos.longti = cur_legn->leg.end._longti;
+		    	_epos.lati = cur_legn->leg.end._lati;
+		    	_epos.alti = _cpos.alti;
+		    	//printf("longti=%f,lati=%f\n",_epos.longti,_epos.lati);	    	
+			
+		    	geo2XYZ(_epos, &eXYZ);
+		    	XYZ2xyz(_spos, eXYZ, &exyz);
+		        /*
+				exyz.x -= DELTA_X_M_GOOGLEEARTH;
+        		exyz.y -= DELTA_Y_M_GOOGLEEARTH;
+        		exyz.z -= DELTA_Z_M_GOOGLEEARTH;
+        		*/
+				continue;
+        	}
+			else if(!_goback)
+			{
+				printf("last route,go back\n");
+            	return 1;
+			}
+#if 0
+			else if(cur_legn->prev != NULL && _goback)
+			{
+				cur_legn = cur_legn->prev;
+					
+		    	_epos.longti = cur_legn->leg.end._longti;
+		    	_epos.lati = cur_legn->leg.end._lati;
+		    	_epos.alti = _cpos.alti;
+		    	//printf("longti=%lf,lati=%lf\n",_epos.longti,_epos.lati);
+					
+		    	geo2XYZ(_epos, &eXYZ);
+		    	XYZ2xyz(_spos, eXYZ, &exyz);
+				continue;
+			}
+#endif
+			else if( _goback )
+			{
+				printf("go back finish\n");
+            	return 1;
+			}
+        }			
+    	
+		else if( !_goback) //Trans to FP controll
+        {
+			x_n_vel = 2 * (exyz.x - cxyz.x)/last_distance_xyz - 0.10*g_acc.x; //what if last_distance_xyz == 0? --zzy
+			y_e_vel = 2 * (exyz.y - cxyz.y)/last_distance_xyz - 0.10*g_acc.y;//fixed velocitywith, 2m/s --zzy
+			
+			dir_Yaw = atan2((exyz.y - cxyz.y),(exyz.x - cxyz.x)) * 180 / 3.1415926; // aim to next route point --zzy0309
+  
+        }
+        else if( _goback)                                        //
+        {
+
+
+
+			x_n_vel = - 0.3 * (cxyz.x - exyz.x) - 0.05 * (_cvel.x);
+			limit_range(&x_n_vel, P2P_MAX_VEL_N_E * (cxyz.x - exyz.x) / last_distance_xyz);
+            y_e_vel = - 0.3 * (cxyz.y - exyz.y) - 0.05 * (_cvel.y);
+			limit_range(&y_e_vel, P2P_MAX_VEL_N_E * (cxyz.y - exyz.y) / last_distance_xyz);
+			
+			dir_Yaw = atan2((exyz.y - cxyz.y),(exyz.x - cxyz.x)) * 180 / 3.1415926; // aim to next route point --zzy0309
+        }
+       
+        user_ctrl_data.roll_or_x = x_n_vel;         
+        user_ctrl_data.pitch_or_y = y_e_vel; 
+		user_ctrl_data.ctrl_flag = 0x40;
+		
+#else
+
+		
+		k1d = 0.2;
+   	 	k1p = 0.3;  //01-23 (0.2 to 0.3)
+    	k2d = 0.2;
+    	k2p = 0.3;  //01-23 (0.2 to 0.3)
+
+		if(last_distance_xyz < (2*HOVER_POINT_RANGE) )//Get the point and exit
         {
         	if(cur_legn->next != NULL && !_goback)
         	{
@@ -488,6 +589,7 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
 		    	_epos.lati = cur_legn->leg.end._lati;
 		    	_epos.alti = _cpos.alti;
 		    	//printf("longti=%f,lati=%f\n",_epos.longti,_epos.lati);
+		    	printf("Has reached point %d\n",cur_legn->leg.leg_seq);
 					
 		    	geo2XYZ(_epos, &eXYZ);
 		    	XYZ2xyz(_spos, eXYZ, &exyz);
@@ -539,8 +641,9 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
         user_ctrl_data.ctrl_flag = 0x40;
         user_ctrl_data.roll_or_x = x_n_vel;         
         user_ctrl_data.pitch_or_y = y_e_vel;    
+#endif
         user_ctrl_data.thr_z =  _p2p_height - _cpos.height;  
-        user_ctrl_data.yaw = 0;
+        user_ctrl_data.yaw = dir_Yaw;
         
         
         DJI_Pro_Attitude_Control(&user_ctrl_data);
@@ -1766,10 +1869,10 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     
     DJI_Pro_Get_Pos(&_focus_point);
     DJI_Pro_Get_GroundVo(&_cvel);
-
+	
     user_ctrl_data.ctrl_flag = 0x40;
-    user_ctrl_data.yaw = 0;
     user_ctrl_data.roll_or_x = 0;
+	user_ctrl_data.yaw       = 0;
     user_ctrl_data.pitch_or_y = 0;
             
     //target_has_updated = 0;
@@ -1800,7 +1903,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
     {
         DJI_Pro_Get_Pos(&_cpos);
         DJI_Pro_Get_GroundVo(&_cvel);
-        DJI_Pro_Get_Quaternion(&_cquaternion);
+        DJI_Pro_Get_Quaternion(&_cquaternion);			
 
         roll_rard   = atan2(        2 * (_cquaternion.q0 * _cquaternion.q1 + _cquaternion.q2 * _cquaternion.q3),
                                     1 - 2 * (_cquaternion.q1 * _cquaternion.q1 + _cquaternion.q2 * _cquaternion.q2)     );
@@ -2077,7 +2180,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
         {
             return 1;
         }
-        
+
         DJI_Pro_Attitude_Control(&user_ctrl_data);
         set_ctrl_data(user_ctrl_data);
         set_no_gps_z_data(cxyz_no_gps.z);

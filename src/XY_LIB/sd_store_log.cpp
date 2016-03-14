@@ -78,6 +78,8 @@ Body_Angle body_angle;
 api_common_data_t cur_acc;
 api_vel_data_t cur_vo;    
 sdk_std_msg_t cur_broadcast_data;
+unsigned char cur_battery_remaining;
+
 float _log_no_gps_z;
 
 extern float ultra_buf[ULTRA_ANALYSIS_NUM];
@@ -89,11 +91,13 @@ void store_depend_stat(int _stat, char *strp)
 	switch(_stat)
 	{
 		case 0x01:
-			sprintf(strp, "%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%d;%d;%d;", body_angle.roll_deg, body_angle.pitch_deg, body_angle.yaw_deg,
+			sprintf(strp, "%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%d;%d;%d;%c;%c;", body_angle.roll_deg, body_angle.pitch_deg, body_angle.yaw_deg,
                                                                                                    cur_acc.x, cur_acc.y, cur_acc.z,
                                                                                                    cur_vo.x, cur_vo.y, cur_vo.z,
                                                                                                    cur_broadcast_data.w.x, cur_broadcast_data.w.y, cur_broadcast_data.w.z,
-                                                                                                   cur_broadcast_data.mag.x, cur_broadcast_data.mag.y, cur_broadcast_data.mag.z);
+                                                                                                   cur_broadcast_data.mag.x, cur_broadcast_data.mag.y, cur_broadcast_data.mag.z,
+                                                                                                   cur_battery_remaining,
+                                                                                                   cur_broadcast_data.status);
 			break;
 		case 0x02:
 			sprintf(strp, "%.10lf;%.10lf;%.8f;%.8f;%x;", 	_log_pos.longti,
@@ -339,6 +343,8 @@ static void *store_to_log_thread_func(void * arg)
 			"vgx;vgy;vgz;"
 			"wx;wy;wz;"
 			"mx;my;mz;"
+			"battery;"
+			"status;"
 			"longti;lati;alti;height;health;"
 			"cur_xyz;"
 			"no_gps_z;"
@@ -364,6 +370,7 @@ static void *store_to_log_thread_func(void * arg)
 			DJI_Pro_Get_GroundAcc(&cur_acc);  
 			DJI_Pro_Get_GroundVo(&cur_vo);
 			DJI_Pro_Get_Broadcast_Data(&cur_broadcast_data);
+			DJI_Pro_Get_Bat_Capacity(&cur_battery_remaining);
 			stat |= 0x01;
                               
 			DJI_Pro_Get_Pos(&_log_pos);
