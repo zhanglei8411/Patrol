@@ -296,7 +296,7 @@ _relink:
 		printf("Ultra Function Open ERROR.\n");
 		XY_Debug_Send_At_Once("Ultra Function Open ERROR.\n");
 	}
-
+#if 0
 	if(0 == XY_Load_Goods())
 	{
 		printf("Load signal send okay.\n");
@@ -308,7 +308,7 @@ _relink:
 		printf("Load signal send error.\n");
 		XY_Debug_Send_At_Once("Load signal send error.\n");
 	}
-	
+#endif	
 	sleep(5);
 	
 	init_aircraft_status();

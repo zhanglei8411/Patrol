@@ -42,8 +42,8 @@
 #define CAM_INSTALL_DELTA_X				(0.0)	//m,add to offset camera x, down to see drone, x is right 
 #define CAM_INSTALL_DELTA_Y				(0.01)	//m,add to offset camera y, down to see drone, y is down, the drone center is y+
 
-#define CAM_INSTALL_DELTA_ROLL          (3.0)      //when the camera head rotation right, +, add the angle
-#define CAM_INSTALL_DELTA_PITCH         (1.8)      //when the camera head rotation up, +, add the angle
+#define CAM_INSTALL_DELTA_ROLL          (0.0)      //when the camera head rotation right, +, add the angle
+#define CAM_INSTALL_DELTA_PITCH         (-1.0)      //when the camera head rotation up, +, add the angle
 
 #define DEPTH_IMAGE_XY_CAL				5		//the depth of the data queue of image xy data which is used to cal the xy velocity, max is 5
 #define SEPT_TIMES_FOR_CAL_XY_VEL		3		//the times of period of image data between two data to cal the velocity

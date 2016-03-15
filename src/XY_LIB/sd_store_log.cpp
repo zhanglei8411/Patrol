@@ -79,6 +79,8 @@ api_common_data_t cur_acc;
 api_vel_data_t cur_vo;    
 sdk_std_msg_t cur_broadcast_data;
 unsigned char cur_battery_remaining;
+api_ctrl_info_data_t cur_ctrl_info;
+
 
 float _log_no_gps_z;
 
@@ -91,13 +93,13 @@ void store_depend_stat(int _stat, char *strp)
 	switch(_stat)
 	{
 		case 0x01:
-			sprintf(strp, "%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%.4f;%d;%d;%d;%c;%c;", body_angle.roll_deg, body_angle.pitch_deg, body_angle.yaw_deg,
+			sprintf(strp, "%.4f,%.4f,%.4f;%.4f,%.4f,%.4f;%.4f,%.4f,%.4f;%.4f,%.4f,%.4f;%d,%d,%d;%d;%d;", body_angle.roll_deg, body_angle.pitch_deg, body_angle.yaw_deg,
                                                                                                    cur_acc.x, cur_acc.y, cur_acc.z,
                                                                                                    cur_vo.x, cur_vo.y, cur_vo.z,
                                                                                                    cur_broadcast_data.w.x, cur_broadcast_data.w.y, cur_broadcast_data.w.z,
                                                                                                    cur_broadcast_data.mag.x, cur_broadcast_data.mag.y, cur_broadcast_data.mag.z,
                                                                                                    cur_battery_remaining,
-                                                                                                   cur_broadcast_data.status);
+                                                                                                   cur_ctrl_info.cur_ctrl_dev_in_navi_mode);
 			break;
 		case 0x02:
 			sprintf(strp, "%.10lf;%.10lf;%.8f;%.8f;%x;", 	_log_pos.longti,
@@ -124,7 +126,7 @@ void store_depend_stat(int _stat, char *strp)
 											_log_user_ctrl_data.thr_z);
 			break;
 			
-              case 0x20:
+        case 0x20:
 			sprintf(strp, "%.4f,%.4f;", _log_ultra_data,_calc_ultra_data);
 			break;
 			
@@ -326,7 +328,7 @@ static void *store_to_log_thread_func(void * arg)
 	struct timeval    tv;  
 	struct tm         *tmlocal; 
 	double dji_time=0;
-	char _wbuf[500] = {0};
+	char _wbuf[1024] = {0};
     Queue* pq=create(4);
        
 	if(log_fd == -1)
@@ -338,11 +340,11 @@ static void *store_to_log_thread_func(void * arg)
 	char header[300];
 	sprintf(header,
 			"linux time;dji time;"
-			"body_roll;body_pitch;body_yaw;"
-			"agx;agy;agz;"
-			"vgx;vgy;vgz;"
-			"wx;wy;wz;"
-			"mx;my;mz;"
+			"body_roll,body_pitch,body_yaw;"
+			"agx,agy,agz;"
+			"vgx,vgy,vgz;"
+			"wx,wy,wz;"
+			"mx,my,mz;"
 			"battery;"
 			"status;"
 			"longti;lati;alti;height;health;"
@@ -371,6 +373,7 @@ static void *store_to_log_thread_func(void * arg)
 			DJI_Pro_Get_GroundVo(&cur_vo);
 			DJI_Pro_Get_Broadcast_Data(&cur_broadcast_data);
 			DJI_Pro_Get_Bat_Capacity(&cur_battery_remaining);
+			DJI_Pro_Get_CtrlInfo(&cur_ctrl_info);
 			stat |= 0x01;
                               
 			DJI_Pro_Get_Pos(&_log_pos);

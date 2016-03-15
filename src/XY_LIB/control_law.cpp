@@ -495,7 +495,7 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
         //01-23 (2*HOVER_POINT_RANGE to 5*HOVER_POINT_RANGE)
 #if 1
 
-		if(((last_distance_xyz < (HOVER_POINT_RANGE)) && (cur_legn->leg.criFlag == 0))||((last_distance_xyz < 0.25) && (cur_legn->leg.criFlag == 1)))//Get the point and exit,0.1 is HOVER_POINT_RANGE_Critical 
+		if(((last_distance_xyz < (HOVER_POINT_RANGE)) && (cur_legn->leg.criFlag == 0))||((last_distance_xyz < 0.5) && (cur_legn->leg.criFlag == 1)))//Get the point and exit,0.1 is HOVER_POINT_RANGE_Critical 
         {
         	if(cur_legn->next != NULL && !_goback)
         	{
@@ -503,6 +503,7 @@ int XY_Ctrl_Drone_P2P_With_FP_COMMON(float _p2p_height, int _goback)
 					                                                                   cur_legn->leg.criFlag,
 		    	                                                                       cur_legn->leg.end._longti,
 		    	                                                                       cur_legn->leg.end._lati);
+				XY_Debug_Send_At_Once("Has reached point %d\n", cur_legn->leg.leg_seq);
         		cur_legn = cur_legn->next;
 				
 		    	_epos.longti = cur_legn->leg.end._longti;
@@ -2366,7 +2367,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
             //cvel_no_gps.x = 0;
             //cvel_no_gps.y = 0;
             
-            if ( GPS_VERY_GOOD <= _cpos.health_flag )
+            if ( GPS_OK_FOR_USE <= _cpos.health_flag )
             {
                 cvel_no_gps.x = _cvel.x;
                 cvel_no_gps.y = _cvel.y;
@@ -2482,7 +2483,7 @@ int XY_Ctrl_Drone_Down_Has_NoGPS_Mode_And_Approach_Put_Point_GOBACK(float _max_v
             
         }
         
-        printf("[%d][%d]Roll_Y_E=%.4f, Pitch_X_N=%.4f, dx=%.4f,vx=%.4f,dy=%.4f,vy=%.4f\n",ctrl_mode_flag, _cpos.health_flag, user_ctrl_data.roll_or_x, user_ctrl_data.pitch_or_y, cxyz_no_gps.x - cur_target_xyz.x, cvel_no_gps.x, cxyz_no_gps.y - cur_target_xyz.y, cvel_no_gps.y );
+        printf("[%d][%d]Roll=%.4f,Pitch=%.4f,dx=%.4f,vx=%.4f,dy=%.4f,vy=%.4f\n",ctrl_mode_flag, _cpos.health_flag, user_ctrl_data.roll_or_x, user_ctrl_data.pitch_or_y, cxyz_no_gps.x - cur_target_xyz.x, cvel_no_gps.x, cxyz_no_gps.y - cur_target_xyz.y, cvel_no_gps.y );
         
         last_dis_to_mark = sqrt(pow((cxyz_no_gps.x - cur_target_xyz.x), 2) + pow((cxyz_no_gps.y - cur_target_xyz.y), 2));		
         

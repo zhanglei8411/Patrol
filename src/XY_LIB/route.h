@@ -20,17 +20,17 @@
 /*-----node for route------ */
 #define INTERVAL_OF_ROUTE_NODE                                  (10)
 #define RANGE_OF_TURN                                           (10)
-#define NUMBER_OF_TURN_POINTS                                   (20)
+#define NUMBER_OF_TURN_POINTS                                   (3)
 
 /*-----velocity for up down------*/
-/*deliver up*/
+/*patrol up*/
 #define DELIVER_MAX_VEL_UP_TO_H2								(1.25)	
 #define DELIVER_MIN_VEL_UP_TO_H2								(1.25)	//0220 (1.0 to 1.25)
 
 #define DELIVER_MAX_VEL_UP_TO_H3								(1.75)
 #define DELIVER_MIN_VEL_UP_TO_H3								(0.5)	//0220 (1.0 to 0.5)
 
-/*deliver down*/
+/*patrol down*/
 #define DELIVER_MAX_VEL_DOWN_TO_H1								(1.75)
 #define DELIVER_MIN_VEL_DOWN_TO_H1								(0.2)	//0220 (0.4 to 0.2); ready to hover find image
 
@@ -200,12 +200,12 @@ int add_leg_node(Leg_Node *_head, struct Leg _leg);
 void delete_leg_list(Leg_Node *_head);
 void XY_Release_List_Resource(Leg_Node *_head);
 int update_cur_legn_data(double _longti, double _lati);
-int init_deliver_route_list(void);
+int init_patrol_route_list(void);
 int init_goback_route_list(void);
 
 
 int XY_Drone_Execute_Task(void);
-int XY_Drone_Deliver_Task(void);
+int XY_Drone_Patrol_Task(void);
 int XY_Drone_Goback_Task(void);
 
 

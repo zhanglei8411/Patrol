@@ -8,7 +8,7 @@
 #include "range.h"
 #define DEBUG_PRINT	1
 
-Leg_Node *deliver_route_head = NULL;
+Leg_Node *patrol_route_head = NULL;
 Leg_Node *goback_route_head = NULL;
 Leg_Node *cur_legn = NULL;
 Leg task_info;
@@ -19,10 +19,10 @@ extern struct debug_info debug_package;
 
 int drone_goback = 0;
 
-static void *drone_deliver_task_thread_func(void * arg);
-static void *drone_deliver_up_thread_func(void * arg);
-static void *drone_deliver_p2p_thread_func(void * arg);
-//static void *drone_deliver_down_thread_func(void * arg);
+static void *drone_patrol_task_thread_func(void * arg);
+static void *drone_patrol_up_thread_func(void * arg);
+static void *drone_patrol_p2p_thread_func(void * arg);
+//static void *drone_patrol_down_thread_func(void * arg);
 
 
 static void *drone_goback_task_thread_func(void * arg);
@@ -32,7 +32,7 @@ static void *drone_goback_down_thread_func(void * arg);
 
 int XY_Drone_Execute_Task(void)
 {
-	if( XY_Drone_Deliver_Task() < 0 )
+	if( XY_Drone_Patrol_Task() < 0 )
 		return -1;
 	
 	if( XY_Drone_Goback_Task() < 0 )
@@ -41,12 +41,12 @@ int XY_Drone_Execute_Task(void)
 	return 0;
 }
 
-int XY_Drone_Deliver_Task(void)
+int XY_Drone_Patrol_Task(void)
 {
-	printf("--------deliver_task--------\n");
-	if(XY_Create_Thread(drone_deliver_task_thread_func, NULL, THREADS_DELIVER, -1, SCHED_RR, 97) < 0)
+	printf("--------patrol_task--------\n");
+	if(XY_Create_Thread(drone_patrol_task_thread_func, NULL, THREADS_DELIVER, -1, SCHED_RR, 97) < 0)
 	{
-		printf("Create Drone Deliver Task Thread Error.\n");
+		printf("Create Drone Patrol Task Thread Error.\n");
 		return -1;
 	}
 	pthread_join(get_tid(THREADS_DELIVER), NULL);
@@ -68,25 +68,25 @@ int XY_Drone_Goback_Task(void)
 }
 
 /* ============================================================================ */
-static void *drone_deliver_task_thread_func(void * arg)
+static void *drone_patrol_task_thread_func(void * arg)
 {
 	int ret;
 	pthread_t tid;
-	printf("--------init_deliver-------\n");
-	ret = init_deliver_route_list();
+	printf("--------init_patrol-------\n");
+	ret = init_patrol_route_list();
 	if(ret == -1)
 	{
-		perror("init_deliver_route_list");
+		perror("init_patrol_route_list");
 	}
 	
-	if(deliver_route_head->next == NULL)
+	if(patrol_route_head->next == NULL)
 	{
 		goto error;
 	}
-	cur_legn = deliver_route_head->next;
-	//cur_legn = deliver_route_head;
+	cur_legn = patrol_route_head->next;
+	//cur_legn = patrol_route_head;
 	
-	printf("------------------ deliver task start -----------------\n");
+	printf("------------------ patrol task start -----------------\n");
 	while(1)
 	{
 		//Up to H1
@@ -102,7 +102,7 @@ static void *drone_deliver_task_thread_func(void * arg)
 		pthread_mutex_unlock(&mutex);
 
 		//Up
-		if( pthread_create(&tid, 0, drone_deliver_up_thread_func, NULL) != 0  )
+		if( pthread_create(&tid, 0, drone_patrol_up_thread_func, NULL) != 0  )
 		{
 			goto error;
 		}
@@ -111,7 +111,7 @@ static void *drone_deliver_task_thread_func(void * arg)
 		pthread_mutex_unlock(&mutex);
 
 		//P2P on H3
-		if( pthread_create(&tid, 0, drone_deliver_p2p_thread_func, NULL) != 0  )
+		if( pthread_create(&tid, 0, drone_patrol_p2p_thread_func, NULL) != 0  )
 		{
 			goto error;
 		}
@@ -120,7 +120,7 @@ static void *drone_deliver_task_thread_func(void * arg)
 		pthread_mutex_unlock(&mutex);
 #if 0
 		//Down
-		if( pthread_create(&tid, 0, drone_deliver_down_thread_func, NULL) != 0  )
+		if( pthread_create(&tid, 0, drone_patrol_down_thread_func, NULL) != 0  )
 		{
 			goto error;
 		}
@@ -137,9 +137,9 @@ static void *drone_deliver_task_thread_func(void * arg)
 
 error:
 	//»ØÊÕ×ÊÔ´
-	XY_Release_List_Resource(deliver_route_head);
+	XY_Release_List_Resource(patrol_route_head);
 exit:
-	printf("------------------ deliver task over ------------------\n");
+	printf("------------------ patrol task over ------------------\n");	
 	pthread_exit(NULL);
 
 }
@@ -158,8 +158,9 @@ static void *drone_goback_task_thread_func(void * arg)
 	}
 	cur_legn = goback_route_head->next;
 	*/
-	cur_legn = deliver_route_head;
+	cur_legn = patrol_route_head;
 	printf("------------------ goback task start ------------------\n");
+	XY_Debug_Send_At_Once("\n----------------- goback task start -----------------\n");
 	while(1)
 	{
 #if 0
@@ -228,7 +229,7 @@ exit:
 
 
 /* ============================================================================ */
-int drone_deliver_up_to_h2(void)
+int drone_patrol_up_to_h2(void)
 {
 	float max_vel, min_vel, t_height, threshold, kp_z;
 	
@@ -245,7 +246,7 @@ int drone_deliver_up_to_h2(void)
 		return -1;
 }
 
-int drone_deliver_up_to_h3(void)
+int drone_patrol_up_to_h3(void)
 {
 	float max_vel, min_vel, t_height, threshold, kp_z;
 	
@@ -262,14 +263,14 @@ int drone_deliver_up_to_h3(void)
 		return -1;
 }
 
-static void *drone_deliver_up_thread_func(void * arg)
+static void *drone_patrol_up_thread_func(void * arg)
 {
 	XY_Start_Capture();
 	printf("------------------ start up to h2 ------------------\n");
 	XY_Debug_Send_At_Once("\n----------------- Up to H2 - %fm -----------------\n", DELIVER_HEIGHT_OF_UPH2);
 	while(1)
 	{
-		if( drone_deliver_up_to_h2() == 1)
+		if( drone_patrol_up_to_h2() == 1)
 			break;
 	}
 	XY_Stop_Capture();
@@ -278,7 +279,7 @@ static void *drone_deliver_up_thread_func(void * arg)
 	XY_Debug_Send_At_Once("\n----------------- Up to H3 - %fm -----------------\n", DELIVER_HEIGHT_OF_UPH3);
 	while(1)
 	{
-		if( drone_deliver_up_to_h3() == 1)
+		if( drone_patrol_up_to_h3() == 1)
 			break;
 	}
 
@@ -294,7 +295,7 @@ static void *drone_deliver_up_thread_func(void * arg)
 
 
 /* ============================================================================ */
-int drone_deliver_p2p(void)
+int drone_patrol_p2p(void)
 {
 	float p2p_height;
 	
@@ -306,13 +307,13 @@ int drone_deliver_p2p(void)
 }
 
 
-static void *drone_deliver_p2p_thread_func(void * arg)
+static void *drone_patrol_p2p_thread_func(void * arg)
 {
 	printf("------------------ start p2p ------------------\n");
 	XY_Debug_Send_At_Once("\n----------------- Start P2P -----------------\n");
 	while(1)
 	{
-		if( drone_deliver_p2p() == 1)
+		if( drone_patrol_p2p() == 1)
 			break;
 	}
 
@@ -327,7 +328,7 @@ static void *drone_deliver_p2p_thread_func(void * arg)
 
 
 /* ============================================================================ */
-int drone_deliver_down_to_h1(void)
+int drone_patrol_down_to_h1(void)
 {
 	float max_vel, min_vel, t_height, threshold, kp_z;
 	
@@ -344,7 +345,7 @@ int drone_deliver_down_to_h1(void)
 		return -1;
 }
 
-int drone_deliver_find_put_point_with_image(void)
+int drone_patrol_find_put_point_with_image(void)
 {
 	if( XY_Ctrl_Drone_Spot_Hover_And_Find_Put_Point_DELIVER() == 1)
 		return 1;
@@ -352,7 +353,7 @@ int drone_deliver_find_put_point_with_image(void)
 		return -1;
 }
 
-int drone_deliver_down_to_h2(void)
+int drone_patrol_down_to_h2(void)
 {
 	float max_vel, min_vel, t_height, threshold, kp_z;
 	
@@ -369,7 +370,7 @@ int drone_deliver_down_to_h2(void)
 		return -1;
 }
 
-int drone_deliver_down_to_h3(void)
+int drone_patrol_down_to_h3(void)
 {
 	float max_vel, min_vel, t_height, threshold, kp_z;
 	
@@ -386,7 +387,7 @@ int drone_deliver_down_to_h3(void)
 		return -1;
 }
 
-int drone_deliver_spot_hover_and_put(void)
+int drone_patrol_spot_hover_and_put(void)
 {
 	if( XY_Ctrl_Drone_To_Spot_Hover_And_Put_DELIVER() == 1 )
 		return 1;
@@ -409,13 +410,13 @@ int drone_deliver_spot_hover_and_put(void)
  *			   ---  H3, Hover and put goods
  */
 #if 0
-static void *drone_deliver_down_thread_func(void * arg)
+static void *drone_patrol_down_thread_func(void * arg)
 {
 	printf("------------------ start down to h1 ------------------\n");
 	XY_Debug_Send_At_Once("\n----------------- Down to H1 - %fm -----------------\n", DELIVER_HEIGHT_OF_DOWNH1);
 	while(1)
 	{
-		if( drone_deliver_down_to_h1() == 1)
+		if( drone_patrol_down_to_h1() == 1)
 			break;
 	}
 
@@ -427,7 +428,7 @@ static void *drone_deliver_down_thread_func(void * arg)
 	XY_Start_Capture();
 	while(1)
 	{
-		if( drone_deliver_find_put_point_with_image() == 1 )
+		if( drone_patrol_find_put_point_with_image() == 1 )
 			break;	
 	}
 
@@ -435,7 +436,7 @@ static void *drone_deliver_down_thread_func(void * arg)
 	XY_Debug_Send_At_Once("\n----------------- Down to H2 - %fm -----------------\n", DELIVER_HEIGHT_OF_DOWNH2);
 	while(1)
 	{
-		if( drone_deliver_down_to_h2() == 1)
+		if( drone_patrol_down_to_h2() == 1)
 			break;
 	}
 	XY_Stop_Capture();
@@ -446,7 +447,7 @@ static void *drone_deliver_down_thread_func(void * arg)
 	XY_Debug_Send_At_Once("\n----------------- Down to H3 - %fm -----------------\n", DELIVER_HEIGHT_OF_DOWNH3);
 	while(1)
 	{
-		if( drone_deliver_down_to_h3() == 1)
+		if( drone_patrol_down_to_h3() == 1)
 			break;
 	}
 #endif
@@ -455,10 +456,10 @@ static void *drone_deliver_down_thread_func(void * arg)
 	XY_Debug_Send_At_Once("\n----------------- Hover And Put -----------------\n");
 	while(1)
 	{
-		if( drone_deliver_spot_hover_and_put() == 1)
+		if( drone_patrol_spot_hover_and_put() == 1)
 			break;
 	}
-	message_server_deliver_is_okay();
+	message_server_patrol_is_okay();
 	
 	pthread_mutex_lock(&mutex);
 	pthread_cond_signal(&cond);	
@@ -488,7 +489,7 @@ int drone_goback_up_to_h2(void)
 
 int drone_goback_up_to_h3(void)
 {
-	if( drone_deliver_up_to_h3() == 1)
+	if( drone_patrol_up_to_h3() == 1)
 		return 1;
 	else 
 		return -1;
@@ -574,7 +575,7 @@ int drone_goback_down_to_h1(void)
 
 int drone_goback_find_put_point_with_image(void)
 {
-	if(drone_deliver_find_put_point_with_image() == 1)
+	if(drone_patrol_find_put_point_with_image() == 1)
 		return 1;
 	else 
 		return -1;
@@ -753,7 +754,7 @@ int insert_tgt (double lata, double lnga, double latb, double lngb, float interv
 		set_leg_end_pos(&task_info, in_lng, in_lat, ORIGIN_IN_HENGSHENG_ALTI);
 		printf("----add interpolated route %d-------\n",i + leg_num);
 		task_info.criFlag = 0;//mark as interpolated route node
-		if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+		if(insert_new_leg_into_route_list(patrol_route_head, task_info)!= 0)
 		{
 			printf("Route Node Insertion ERROR.\n");
 			return -1;
@@ -779,7 +780,7 @@ int insert_curve(double lata, double lnga, double latb, double lngb,double latc,
 		set_leg_end_pos(&task_info, lngb, latb, ORIGIN_IN_HENGSHENG_ALTI);
 		printf("----add critical route %d-------\n",1 + leg_num);
 		task_info.criFlag = 1;//mark as critical route node
-		if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+		if(insert_new_leg_into_route_list(patrol_route_head, task_info)!= 0)
 			{
 				printf("Route Node Insertion ERROR.\n");
 				return -1;
@@ -805,7 +806,7 @@ int insert_curve(double lata, double lnga, double latb, double lngb,double latc,
 	set_leg_end_pos(&task_info, lng_temp, lat_temp, ORIGIN_IN_HENGSHENG_ALTI);
 	printf("----add critical route %d-------\n",i + leg_num);
 	task_info.criFlag = 1;//mark as critical route node
-	if(insert_new_leg_into_route_list(deliver_route_head, task_info)!= 0)
+	if(insert_new_leg_into_route_list(patrol_route_head, task_info)!= 0)
 		{
 			printf("Route Node Insertion ERROR.\n");
 			return -1;
@@ -815,7 +816,7 @@ int insert_curve(double lata, double lnga, double latb, double lngb,double latc,
 	return 0;
 }
 
-int init_deliver_route_list(void)
+int init_patrol_route_list(void)
 {
 	int ret = 0;
 	static api_pos_data_t start_pos;
@@ -830,10 +831,10 @@ int init_deliver_route_list(void)
 	int arrySize;
 	cJSON *tasklist;
 
-	deliver_route_head = create_head_node();
-	if(deliver_route_head == NULL)
+	patrol_route_head = create_head_node();
+	if(patrol_route_head == NULL)
 	{
-		printf("Create Deliver Route Head ERROR.\n");
+		printf("Create Patrol Route Head ERROR.\n");
 		return -1;
 	}
 
@@ -861,12 +862,12 @@ int init_deliver_route_list(void)
 		printf("[%lf,%lf,%lf]\n",cJSON_GetArrayItem(tasklist,0)->valuedouble,
 			                     cJSON_GetArrayItem(tasklist,1)->valuedouble,
 			                     cJSON_GetArrayItem(tasklist,2)->valuedouble); 
-		printf("[%lf,%lf,%lf]\n", ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * 3.1415926,
-			                     ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * 3.1415926,
+		printf("[%lf,%lf,%lf]\n", ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * PI,
+			                     ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * PI,
 			                     cJSON_GetArrayItem(tasklist,2)->valuedouble);
 		
-		arrLng[route_count] = ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * 3.1415926;
-		arrLat[route_count] = ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * 3.1415926;
+		arrLng[route_count] = ((cJSON_GetArrayItem(tasklist,0)->valuedouble - GD2GE_LONGTI_DIFF)/180) * PI;
+		arrLat[route_count] = ((cJSON_GetArrayItem(tasklist,1)->valuedouble - GD2GE_LATI_DIFF)/180) * PI;
 		arrHeight[route_count] = cJSON_GetArrayItem(tasklist,2)->valuedouble;
 		
 		tasklist=tasklist->next; 
@@ -878,11 +879,11 @@ int init_deliver_route_list(void)
 	set_leg_seq(&task_info, 0);
 	set_leg_end_pos(&task_info, arrLng[0], arrLat[0], arrHeight[0]);
 	task_info.criFlag = 1;
-	ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
+	ret = insert_new_leg_into_route_list(patrol_route_head, task_info);
 	printf("----add route %d-------\n",0);
 	if(ret != 0)
 	{
-		printf("Add Deliver Route Node ERROR.\n");
+		printf("Add Patrol Route Node ERROR.\n");
 		return -1;
 	}
 	
@@ -902,11 +903,11 @@ int init_deliver_route_list(void)
 	set_leg_end_pos(&task_info, arrLng[route_count-1], arrLat[route_count-1], arrHeight[route_count-1]);
 	set_leg_seq(&task_info, 1+task_info.leg_seq);
 	task_info.criFlag = 1;
-	ret = insert_new_leg_into_route_list(deliver_route_head, task_info);
+	ret = insert_new_leg_into_route_list(patrol_route_head, task_info);
 	printf("----add route %d-------\n",task_info.leg_seq);
 	if(ret != 0)
 	{
-		printf("Add Deliver Route Node ERROR.\n");
+		printf("Add Patrol Route Node ERROR.\n");
 		return -1;
 	}
 #endif	
@@ -929,9 +930,9 @@ int init_goback_route_list(void)
 	set_leg_num(&task_info, 1);
 	
 	set_leg_end_pos(&task_info,
-					deliver_route_head->next->leg.start._longti, 
-					deliver_route_head->next->leg.start._lati,
-					deliver_route_head->next->leg.start._alti);
+					patrol_route_head->next->leg.start._longti, 
+					patrol_route_head->next->leg.start._lati,
+					patrol_route_head->next->leg.start._alti);
 
 
 	start_pos.longti = 0;
